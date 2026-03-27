@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/rescuers/$(request.auth.uid)).data.role;
+    }
+
+    function isDispatcherOrAdmin() {
+      return getUserRole() in ['admin', 'dispatcher'];
+    }
+
+    // Incidents - responders can read, dispatchers/admins can create/update
+    match /incidents/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isDispatcherOrAdmin();
+      allow update: if isAuthenticated() && isDispatcherOrAdmin();
+      allow delete: if isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    // Rescuer profiles - read all authenticated, write own or admin
+    match /rescuers/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        (request.auth.uid == id || getUserRole() == 'admin');
+    }
+
+    // SOS Beacons - anyone authenticated can read/create, dispatchers can update
+    match /sos_beacons/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isDispatcherOrAdmin();
+    }
+
+    // Danger Zones - public read, dispatcher/admin write
+    match /danger_zones/{id} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isDispatcherOrAdmin();
+    }
+
+    // Survivors - authenticated read/write
+    match /survivors/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Live Events - public read, server only write (via Admin SDK)
+    match /live_events/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Incident Chat - authenticated read, anyone can post
+    match /incident_chat/{incidentId}/messages/{msgId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+
+    // Alerts Broadcast - public read, dispatcher/admin write
+    match /alerts_broadcast/{id} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isDispatcherOrAdmin();
+    }
+
+    // Resources - authenticated access
+    match /resources/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isDispatcherOrAdmin();
+    }
+  }
+}

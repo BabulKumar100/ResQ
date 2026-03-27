@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "rescuer_positions": {
+      "$rescuerId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $rescuerId"
+      }
+    }
+  }
+}
