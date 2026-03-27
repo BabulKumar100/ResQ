@@ -7,23 +7,28 @@ import 'leaflet/dist/leaflet.css'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { memo } from 'react'
 
-// Fix leaflet icons
-const defaultIcon = L.icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-})
+let defaultIcon: any;
+let emergencyIcon: any;
 
-const emergencyIcon = L.icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiI+PHBhdGggZD0iTTExIDJDNi40OCAyIDIuNSA2LjQ4IDIuNSAxMnM0IDEwIDguNSAxMCAxMC00IDEwLTEwUzE1LjUyIDIgMTEgMnptMCA4aDJ2M2gtMnptMCAyaC0ybC0zLTNoNHptMi0yaDJ2M2gtMnptLTQgMGg2djR6bTYgNGgtMnYtNWgtMnYtNGMwLS41LjUtMS4wMjMuNS0xeiIgZmlsbD0iI0ZGMDAwMCIvPjwvc3ZnPg==',
-  iconSize: [32, 41],
-  iconAnchor: [16, 41],
-  popupAnchor: [0, -41],
-})
+if (typeof window !== 'undefined') {
+  // Fix leaflet icons
+  defaultIcon = L.icon({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  })
+
+  emergencyIcon = L.icon({
+    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiI+PHBhdGggZD0iTTExIDJDNi40OCAyIDIuNSA2LjQ4IDIuNSAxMnM0IDEwIDguNSAxMCAxMC00IDEwLTEwUzE1LjUyIDIgMTEgMnptMCA4aDJ2M2gtMnptMCAyaC0ybC0zLTNoNHptMi0yaDJ2M2gtMnptLTQgMGg2djR6bTYgNGgtMnYtNWgtMnYtNGMwLS41LjUtMS4wMjMuNS0xeiIgZmlsbD0iI0ZGMDAwMCIvPjwvc3ZnPg==',
+    iconSize: [32, 41],
+    iconAnchor: [16, 41],
+    popupAnchor: [0, -41],
+  })
+}
 
 interface MapProps {
   center?: LatLngExpression
