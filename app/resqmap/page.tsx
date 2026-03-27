@@ -16,32 +16,12 @@ export default function CommandCenterPage() {
 
   const seedDatabase = async () => {
     setSeeding(true);
-    if (!db) {
-      alert('Firebase is not configured. Please add your credentials to .env.local to enable the Real-time Database.');
-      setSeeding(false);
-      return;
-    }
-    
     try {
-      // 1. Seed Incidents
-      await createIncident({ type: 'Chemical Spill', severity: 'critical', lat: 34.048, lng: -118.25, address: 'Industrial Sector 4', description: 'Toxic plume detected. Evac required.', source: 'sensor', status: 'new', reportedBy: 'system' });
-      await createIncident({ type: 'Subway Derailment', severity: 'critical', lat: 34.053, lng: -118.245, address: 'Blue Line Downtown', description: 'Train derailed, structure damaged.', source: 'manual', status: 'new', reportedBy: 'user' });
-      await createIncident({ type: 'Bridge Stress', severity: 'high', lat: 34.06, lng: -118.23, address: '4th St Bridge', description: 'Abnormal vibrations detected.', source: 'sensor', status: 'new', reportedBy: 'system' });
-      
-      // 2. Seed Rescuers / Drones
-      await addDoc(collection(db, 'rescuers'), { userId: 'drone1', name: 'DRONE-7 ALPHA', role: 'rescuer', lat: 34.05, lng: -118.24, status: 'busy', agency: 'Air Unit', fuelPct: 84, crewCount: 0, equipment: ['drone'], lastPing: serverTimestamp() });
-      await addDoc(collection(db, 'rescuers'), { userId: 'drone2', name: 'ROVER GRID-X', role: 'rescuer', lat: 34.055, lng: -118.25, status: 'busy', agency: 'Ground Unit', fuelPct: 18, crewCount: 0, equipment: ['rover'], lastPing: serverTimestamp() });
-      await addDoc(collection(db, 'rescuers'), { userId: 'resc1', name: 'MEDVAC B', role: 'rescuer', lat: 34.051, lng: -118.23, status: 'available', agency: 'Medical', fuelPct: 100, crewCount: 4, equipment: ['trauma kit'], lastPing: serverTimestamp() });
-      
-      // 3. Seed Resources
-      await addDoc(collection(db, 'resources'), { name: 'DEPOT OMEGA', location: 'SECTOR 4', distance: '1.2km', type: 'MEDICAL', status: 'CRITICAL', createdAt: serverTimestamp() });
-      await addDoc(collection(db, 'resources'), { name: 'HUB ALPHA', location: 'SECTOR 1', distance: '3.4km', type: 'MULTI', status: 'OPERATIONAL', createdAt: serverTimestamp() });
-
-      // 4. Seed Danger Zones
-      await addDoc(collection(db, 'danger_zones'), { type: 'Fire Spread Vector', status: 'MONITORING', radius: 1200, riskLevel: 'HIGH', description: 'Fire moving NNE at 45km/h due to wind shear.', createdAt: serverTimestamp() });
-
+      await fetch('/api/db/seed', { method: 'POST' });
+      alert('Database seeded! Data polling will pick up changes shortly.');
     } catch (e) {
       console.error('Seed error:', e);
+      alert('Failed to seed local DB');
     }
     setSeeding(false);
   };

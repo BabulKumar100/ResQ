@@ -1,0 +1,179 @@
+{
+  "incidents": [
+    {
+      "id": "m1",
+      "type": "Chemical Spill",
+      "severity": "critical",
+      "lat": 34.048,
+      "lng": -118.25,
+      "address": "Industrial Sector 4",
+      "description": "Toxic plume detected. Evac required.",
+      "source": "sensor",
+      "status": "new",
+      "reportedBy": "system",
+      "createdAt": "2026-03-27T22:18:48.286Z"
+    },
+    {
+      "id": "m2",
+      "type": "Subway Derailment",
+      "severity": "critical",
+      "lat": 34.053,
+      "lng": -118.245,
+      "address": "Blue Line Downtown",
+      "description": "Train derailed, structure damaged.",
+      "source": "manual",
+      "status": "new",
+      "reportedBy": "user",
+      "createdAt": "2026-03-27T22:18:48.287Z"
+    },
+    {
+      "id": "m3",
+      "type": "Bridge Stress",
+      "severity": "high",
+      "lat": 34.06,
+      "lng": -118.23,
+      "address": "4th St Bridge",
+      "description": "Abnormal vibrations detected.",
+      "source": "sensor",
+      "status": "new",
+      "reportedBy": "system",
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    }
+  ],
+  "rescuers": [
+    {
+      "id": "d1",
+      "userId": "drone1",
+      "name": "DRONE-7 ALPHA",
+      "role": "rescuer",
+      "lat": 34.05,
+      "lng": -118.24,
+      "status": "busy",
+      "agency": "Air Unit",
+      "fuelPct": 84,
+      "crewCount": 0,
+      "equipment": [
+        "drone"
+      ]
+    },
+    {
+      "id": "d2",
+      "userId": "drone2",
+      "name": "ROVER GRID-X",
+      "role": "rescuer",
+      "lat": 34.055,
+      "lng": -118.25,
+      "status": "busy",
+      "agency": "Ground Unit",
+      "fuelPct": 18,
+      "crewCount": 0,
+      "equipment": [
+        "rover"
+      ]
+    },
+    {
+      "id": "r1",
+      "userId": "resc1",
+      "name": "MEDVAC B",
+      "role": "rescuer",
+      "lat": 34.051,
+      "lng": -118.23,
+      "status": "available",
+      "agency": "Medical",
+      "fuelPct": 100,
+      "crewCount": 4,
+      "equipment": [
+        "trauma kit"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "res1",
+      "name": "DEPOT OMEGA",
+      "location": "SECTOR 4",
+      "distance": "1.2km",
+      "type": "MEDICAL",
+      "status": "CRITICAL",
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    },
+    {
+      "id": "res2",
+      "name": "HUB ALPHA",
+      "location": "SECTOR 1",
+      "distance": "3.4km",
+      "type": "MULTI",
+      "status": "OPERATIONAL",
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    },
+    {
+      "id": "res3",
+      "name": "FIELD BASE CHARLIE",
+      "location": "SECTOR 2",
+      "distance": "5.1km",
+      "type": "WATER",
+      "status": "WARNING",
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    }
+  ],
+  "danger_zones": [
+    {
+      "id": "dz1",
+      "type": "Fire Spread Vector",
+      "status": "MONITORING",
+      "radius": 1200,
+      "riskLevel": "HIGH",
+      "description": "Fire moving NNE at 45km/h due to wind shear.",
+      "active": true,
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    }
+  ],
+  "survivors": [
+    {
+      "id": "s1",
+      "qrCode": "SV-A1B2",
+      "name": "John Doe",
+      "age": 34,
+      "status": "injured",
+      "lat": 34.045,
+      "lng": -118.255,
+      "notes": "Triage: RED. Chemical burns.",
+      "updatedAt": "2026-03-27T22:18:48.288Z"
+    },
+    {
+      "id": "s2",
+      "qrCode": "SV-C3D4",
+      "name": "Jane Smith",
+      "age": 28,
+      "status": "rescued",
+      "lat": 34.041,
+      "lng": -118.251,
+      "notes": "Triage: YELLOW. Minor abrasions.",
+      "updatedAt": "2026-03-27T22:18:48.288Z"
+    },
+    {
+      "id": "s3",
+      "qrCode": "SV-E5F6",
+      "name": "Carlos Mendez",
+      "age": 45,
+      "status": "critical",
+      "lat": 34.057,
+      "lng": -118.239,
+      "notes": "Triage: BLACK. Severe trauma.",
+      "updatedAt": "2026-03-27T22:18:48.288Z"
+    }
+  ],
+  "sos_beacons": [
+    {
+      "id": "sos1",
+      "userId": "civilian-x",
+      "lat": 34.047,
+      "lng": -118.252,
+      "type": "medical",
+      "urgency": "critical",
+      "status": "active",
+      "createdAt": "2026-03-27T22:18:48.288Z"
+    }
+  ],
+  "live_events": []
+}
