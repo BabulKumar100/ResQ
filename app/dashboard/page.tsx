@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Users, MapPin, Heart, Radio } from 'lucide-react';
 import { useDisasterStore } from '@/lib/store';
-import Navigation from '@/components/Navigation';
+import { Navigation } from '@/components/Navigation';
 import { DashboardAlerts } from '@/components/DashboardAlerts';
 
 export default function DashboardPage() {

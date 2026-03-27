@@ -35,6 +35,8 @@ interface Drone {
   liveStream: boolean
 }
 
+const generateQRCode = (data: string) => `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="white" width="200" height="200"/%3E%3Crect fill="black" x="20" y="20" width="20" height="20"/%3E%3C/svg%3E`
+
 export function SurvivorTracker() {
   const [survivors, setSurvivors] = useState<Survivor[]>([
     {
@@ -482,7 +484,6 @@ Last Updated: ${survivor.foundAt || 'Ongoing search'}
           </div>
         </div>
       )}
-    </div>
 
     {/* Drone Fleet Panel */}
     <div className="w-full lg:w-96 bg-gray-800 rounded-lg p-4 flex flex-col">

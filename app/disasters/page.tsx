@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, MapPin, Users, Clock, TrendingUp } from 'lucide-react';
 import { useDisasterStore } from '@/lib/store';
-import Navigation from '@/components/Navigation';
+import { Navigation } from '@/components/Navigation';
 
 export default function DisastersPage() {
   const [isClient, setIsClient] = useState(false);
