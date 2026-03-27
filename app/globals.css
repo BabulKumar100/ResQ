@@ -121,10 +121,92 @@
   --color-resq-low: #22c55e;
   --color-resq-active: #3b82f6;
   --color-resq-inactive: #6b7280;
+
+  /* Tactical Theme Override */
+  --color-on-tertiary: #003730;
+  --color-surface-dim: #111318;
+  --color-on-tertiary-container: #006c5e;
+  --color-on-background: #e2e2e9;
+  --color-on-primary: #00382f;
+  --color-tertiary: #dafff5;
+  --color-surface-container-high: #282a2f;
+  --color-inverse-surface: #e2e2e9;
+  --color-on-secondary: #002e6a;
+  --color-primary-tactical: #dbfff5;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-secondary-container: #0566d9;
+  --color-tertiary-fixed-dim: #5ddac4;
+  --color-inverse-on-surface: #2e3036;
+  --color-surface-container-lowest: #0c0e13;
+  --color-surface-tint: #41ddc2;
+  --color-secondary-fixed: #d8e2ff;
+  --color-on-secondary-fixed-variant: #004395;
+  --color-surface: #111318;
+  --color-on-primary-container: #006c5d;
+  --color-surface-container-highest: #33353a;
+  --color-secondary-tactical: #adc6ff;
+  --color-secondary-fixed-dim: #adc6ff;
+  --color-inverse-primary: #006b5c;
+  --color-on-surface-variant: #bbcac4;
+  --color-tertiary-container: #74efd8;
+  --color-surface-bright: #37393f;
+  --color-primary-container: #5cf2d6;
+  --color-primary-fixed: #65fade;
+  --color-outline: #85948f;
+  --color-primary-fixed-dim: #41ddc2;
+  --color-outline-variant: #3c4a46;
+  --color-on-tertiary-fixed: #00201b;
+  --color-error-tactical: #ffb4ab;
+  --color-on-primary-fixed: #00201b;
+  --color-tertiary-fixed: #7cf7e0;
+  --color-on-secondary-container: #e6ecff;
+  --color-on-primary-fixed-variant: #005045;
+  --color-surface-container-low: #1a1b21;
+  --color-on-error-container: #ffdad6;
+  --color-surface-container: #1e1f25;
+  --color-on-surface: #e2e2e9;
+  --color-on-secondary-fixed: #001a42;
+  --color-on-tertiary-fixed-variant: #005046;
+  --color-surface-variant: #33353a;
+
+  --font-headline: 'Space Grotesk', var(--font-sans);
+  --font-body: 'Inter', var(--font-sans);
+  --font-label: 'Inter', var(--font-sans);
 }
 
 /* Custom animations for ResqMap */
 @layer components {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass-panel {
+    background: rgba(26, 27, 33, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .pulse-red {
+    box-shadow: 0 0 0 0 rgba(255, 180, 171, 0.7);
+    animation: pulse-red-custom 2s infinite;
+  }
+  @keyframes pulse-red-custom {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 180, 171, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 180, 171, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 180, 171, 0); }
+  }
+  .pulse-teal {
+    box-shadow: 0 0 0 0 rgba(92, 242, 214, 0.7);
+    animation: pulse-teal 2s infinite;
+  }
+  @keyframes pulse-teal {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(92, 242, 214, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(92, 242, 214, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(92, 242, 214, 0); }
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   @keyframes pulse-red {
     0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
     50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
@@ -187,11 +269,7 @@
     @apply border-border outline-ring/50;
   }
   html {
-    background-image: url('/disaster-bg.jpg');
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background-color: #111318;
   }
   body {
     @apply bg-background text-foreground;

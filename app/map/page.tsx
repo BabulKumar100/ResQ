@@ -1,310 +1,159 @@
-'use client'
+'use client';
 
-import { useState, useEffect, Suspense } from 'react'
-import dynamic from 'next/dynamic'
-import { Navigation } from '@/components/Navigation'
-import { useGeolocation } from '@/hooks/useGeolocation'
-import { Loader2, Hospital, Shield, Flame, Filter, Phone, MapPin, Clock, ArrowRight } from 'lucide-react'
+import React, { useState } from 'react';
+import { TacticalLayout } from '@/components/ui/TacticalLayout';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+import { useRealtimeIncidents, useRealtimeRescuers } from '@/lib/useRealtime';
+import { formatDistanceToNow } from 'date-fns';
 
 const ResQMap = dynamic(() => import('@/components/ResQMap').then(mod => ({ default: mod.ResQMap })), {
   ssr: false,
-  loading: () => <div className="w-full h-96 bg-gray-200 flex items-center justify-center"><Loader2 className="animate-spin" /></div>,
-})
+  loading: () => <div className="w-full h-full bg-surface-dim flex items-center justify-center"><Loader2 className="animate-spin text-primary-tactical" /></div>,
+});
 
-interface EmergencyService {
-  id: string
-  name: string
-  service_type: 'hospital' | 'police' | 'fire'
-  address: string
-  phone: string
-  is_24_hours: boolean
-  latitude: number
-  longitude: number
-}
+export default function EmergencyMapPage() {
+  const [activeLayer, setActiveLayer] = useState<'thermal' | 'structural' | 'population' | 'hazard' | 'clear'>('hazard');
+  const { incidents } = useRealtimeIncidents();
+  const { rescuers } = useRealtimeRescuers();
 
-export default function MapPage() {
-  const { location, loading: geoLoading } = useGeolocation()
-  const [services, setServices] = useState<EmergencyService[]>([])
-  const [loading, setLoading] = useState(false)
-  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'police' | 'fire'>('all')
-  const [selectedService, setSelectedService] = useState<EmergencyService | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
-  const [searchRadius, setSearchRadius] = useState(5000)
-
-  useEffect(() => {
-    if (location) {
-      fetchServices()
-      const interval = setInterval(fetchServices, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [location])
-
-  const fetchServices = async () => {
-    if (!location) return
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        lat: location.latitude.toString(),
-        lng: location.longitude.toString(),
-        radius: searchRadius.toString(),
-        ...(selectedType !== 'all' && { type: selectedType }),
-      })
-
-      const response = await fetch(`/api/emergency-services?${params}`)
-      const data = await response.json()
-      setServices(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching services:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredServices = selectedType === 'all'
-    ? services
-    : services.filter(s => s.service_type === selectedType)
-
-  const getServiceIcon = (type: 'hospital' | 'police' | 'fire') => {
-    switch (type) {
-      case 'hospital':
-        return <Hospital className="w-5 h-5" />
-      case 'police':
-        return <Shield className="w-5 h-5" />
-      case 'fire':
-        return <Flame className="w-5 h-5" />
-    }
-  }
-
-  const getServiceColor = (type: 'hospital' | 'police' | 'fire') => {
-    switch (type) {
-      case 'hospital':
-        return 'bg-red-100 text-red-600 border-red-300'
-      case 'police':
-        return 'bg-blue-100 text-blue-600 border-blue-300'
-      case 'fire':
-        return 'bg-orange-100 text-orange-600 border-orange-300'
-    }
-  }
-
-  const getButtonColor = (type: 'hospital' | 'police' | 'fire') => {
-    switch (type) {
-      case 'hospital':
-        return 'bg-red-500 hover:bg-red-600'
-      case 'police':
-        return 'bg-blue-500 hover:bg-blue-600'
-      case 'fire':
-        return 'bg-orange-500 hover:bg-orange-600'
-    }
-  }
-
-  const typeFilters = [
-    { id: 'all', label: 'All Services', icon: Filter },
-    { id: 'hospital', label: 'Hospitals', icon: Hospital },
-    { id: 'police', label: 'Police', icon: Shield },
-    { id: 'fire', label: 'Fire Stations', icon: Flame },
-  ]
+  const mapMarkers = [
+    { position: [34.0522, -118.2437] as [number, number], title: 'Command Node', type: 'default', description: 'Main HQ' },
+    ...incidents.map(i => ({
+      position: [i.lat || 34.0522, i.lng || -118.2437] as [number, number],
+      title: i.type.toUpperCase(),
+      type: 'emergency' as const,
+      description: i.description || i.address
+    })),
+    ...rescuers.map(r => ({
+      position: [r.lat || 34.0522, r.lng || -118.2437] as [number, number],
+      title: r.name,
+      type: 'resource' as const,
+      description: `Role: ${r.role}, Status: ${r.status}`
+    }))
+  ];
+  
+  const criticalIncidents = incidents.filter(i => i.severity === 'critical');
+  const activeIncident = criticalIncidents[0] || incidents[0] || null;
 
   return (
-    <>
-      <Navigation />
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        {/* Header */}
-        <section className="bg-gradient-to-r from-red-50 to-red-100 py-8 border-b border-red-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Emergency Services Map</h1>
-            <p className="text-gray-700">Find nearby hospitals, police stations, and fire departments</p>
-          </div>
-        </section>
+    <TacticalLayout>
+      <div className="absolute inset-0 bg-surface-container-lowest z-0">
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#41ddc2 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+        <div className="w-full h-full relative">
+          <ResQMap 
+            center={[34.0522, -118.2437]} 
+            zoom={14} 
+            markers={mapMarkers} 
+          />
+        </div>
+      </div>
 
-        {/* Filters */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3 mb-4">
+      {/* Top Data Overlay */}
+      <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-10 pointer-events-none">
+        <div className="flex gap-4">
+          <div className="glass-panel p-3 rounded-lg border border-primary-container/30 flex items-center gap-3">
+            <span className="material-symbols-outlined text-tertiary-container">person_play</span>
+            <div>
+              <div className="text-xl font-bold font-mono text-tertiary-container">{rescuers.length}</div>
+              <div className="text-[10px] text-outline tracking-wider">ACTIVE RESPONDERS</div>
+            </div>
+          </div>
+          <div className="glass-panel p-3 rounded-lg border border-error-container/50 flex items-center gap-3 animate-pulse-red">
+            <span className="material-symbols-outlined text-error-tactical">warning</span>
+            <div>
+              <div className="text-xl font-bold font-mono text-error-tactical">{criticalIncidents.length}</div>
+              <div className="text-[10px] text-outline tracking-wider">CRITICAL ALERTS</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel px-4 py-2 rounded-full border border-primary-tactical/30 flex items-center gap-4 hidden sm:flex pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary-tactical animate-pulse"></span>
+            <span className="text-xs font-mono text-primary-tactical">SAT-LINK ACTIVE</span>
+          </div>
+          <div className="w-px h-4 bg-outline/30"></div>
+          <span className="text-xs font-mono text-outline-variant">UPTIME: 99.9%</span>
+        </div>
+      </div>
+
+      {/* Floating Control Panel (Left) */}
+      <div className="absolute left-6 top-32 w-72 glass-panel rounded-xl border border-on-tertiary/40 overflow-hidden z-10 pointer-events-auto">
+        <div className="p-4 border-b border-on-tertiary/30 bg-surface-container/50">
+          <h2 className="font-headline font-semibold text-primary-tactical text-sm tracking-wide flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">layers</span>
+            TACTICAL OVERLAYS
+          </h2>
+        </div>
+        <div className="p-4 space-y-3">
+          {[
+            { id: 'thermal', label: 'THERMAL IMAGING', icon: 'thermostat', color: 'text-error-tactical', desc: 'Active heat signatures detector' },
+            { id: 'structural', label: 'STRUCTURAL DAMAGE', icon: 'domain_disabled', color: 'text-resq-high', desc: 'Building integrity assessment' },
+            { id: 'population', label: 'POPULATION DENSITY', icon: 'groups', color: 'text-primary-tactical', desc: 'Cellular heatmap aggregation' },
+            { id: 'hazard', label: 'BIOLOGICAL HAZARDS', icon: 'coronavirus', color: 'text-resq-low', desc: 'Toxin & radiation spread' },
+          ].map((layer) => (
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition transform hover:scale-105"
+              key={layer.id}
+              onClick={() => setActiveLayer(layer.id as any)}
+              className={`w-full group flex items-start gap-3 p-3 rounded-lg transition-all border ${activeLayer === layer.id ? 'bg-primary-container/10 border-primary-container/50' : 'bg-surface-container-high/30 border-transparent hover:bg-surface-container-low hover:border-on-tertiary/50'}`}
             >
-              <Filter className="w-5 h-5" />
-              Filters
+              <span className={`material-symbols-outlined ${activeLayer === layer.id ? layer.color : 'text-outline-variant group-hover:text-primary-tactical'}`}>{layer.icon}</span>
+              <div className="text-left">
+                <div className={`text-xs font-mono font-bold ${activeLayer === layer.id ? layer.color : 'text-on-surface'}`}>{layer.label}</div>
+                <div className="text-[10px] text-outline mt-1">{layer.desc}</div>
+              </div>
             </button>
-            {geoLoading && <span className="text-sm text-gray-600 flex items-center gap-1"><Loader2 className="w-4 h-4 animate-spin" /> Getting location...</span>}
+          ))}
+        </div>
+      </div>
+
+      {/* Right Tactical Detail Panel */}
+      {activeIncident && (
+        <div className="absolute right-6 top-24 w-80 glass-panel rounded-xl border border-error-container/40 overflow-hidden z-10 animate-slide-in-right pointer-events-auto hidden md:block">
+          <div className={`p-4 ${activeIncident.severity === 'critical' ? 'bg-error-container/20 border-error-tactical/20' : 'bg-surface-container/50 border-outline/20'} border-b flex justify-between items-center`}>
+            <div className="flex items-center gap-2">
+              <span className={`material-symbols-outlined text-sm ${activeIncident.severity === 'critical' ? 'text-error-tactical animate-pulse' : 'text-primary-tactical'}`}>adjust</span>
+              <span className={`text-xs font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-primary-tactical'}`}>INCIDENT {activeIncident.id?.substring(0,6).toUpperCase()}</span>
+            </div>
+            <span className="text-[10px] font-mono text-outline">
+               {activeIncident.createdAt ? formatDistanceToNow((activeIncident.createdAt as any).toDate ? (activeIncident.createdAt as any).toDate() : new Date(activeIncident.createdAt as any), { addSuffix: true }).toUpperCase() : 'JUST NOW'}
+            </span>
           </div>
-
-          {showFilters && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 animate-fade-in">
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Search Radius</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1000"
-                    max="25000"
-                    step="1000"
-                    value={searchRadius}
-                    onChange={(e) => {
-                      setSearchRadius(Number(e.target.value))
-                      setSelectedType('all')
-                    }}
-                    className="flex-1"
-                  />
-                  <span className="text-sm font-semibold text-gray-700 min-w-fit">{(searchRadius / 1000).toFixed(1)} km</span>
-                </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <div className="text-lg font-headline font-bold text-on-surface">{activeIncident.type.toUpperCase()}</div>
+              <div className="text-sm text-outline mt-1">{activeIncident.description || activeIncident.address}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-surface-container-lowest p-3 rounded border border-on-tertiary/20">
+                <div className="text-[10px] text-outline font-mono mb-1">THREAT LEVEL</div>
+                <div className={`${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-resq-high'} font-bold text-sm uppercase`}>{activeIncident.severity} ZONE</div>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Service Type</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {typeFilters.map((filter) => {
-                    const Icon = filter.icon
-                    const isSelected = selectedType === filter.id
-                    return (
-                      <button
-                        key={filter.id}
-                        onClick={() => setSelectedType(filter.id as any)}
-                        className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-semibold transition transform hover:scale-105 ${
-                          isSelected
-                            ? 'bg-red-500 text-white shadow-lg'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span className="text-xs md:text-sm">{filter.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
+              <div className="bg-surface-container-lowest p-3 rounded border border-on-tertiary/20">
+                <div className="text-[10px] text-outline font-mono mb-1">UNITS</div>
+                <div className="text-primary-tactical font-bold text-sm">{activeIncident.assignedTo?.length || 0} ASSIGNED</div>
               </div>
             </div>
-          )}
-        </section>
-
-        {/* Map and Services */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Map */}
-            <div className="lg:col-span-2">
-              <div className="rounded-lg overflow-hidden shadow-lg h-96 bg-gray-200">
-                <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8" /></div>}>
-                  <ResQMap
-                    center={location ? [location.latitude, location.longitude] : [40.7128, -74.006]}
-                    zoom={14}
-                    markers={filteredServices.map((service) => ({
-                      position: [service.latitude, service.longitude],
-                      title: service.name,
-                      type: 'emergency',
-                      description: service.address,
-                    }))}
-                  />
-                </Suspense>
+            
+            <div className="w-full h-32 bg-surface-dim rounded border border-outline-variant/30 flex items-center justify-center relative overflow-hidden">
+              {/* Live drone feed placeholder */}
+              <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1615631221590-7d7211110091?q=80&w=600')] bg-cover bg-center mix-blend-luminosity"></div>
+              <div className={`absolute inset-0 ${activeIncident.severity === 'critical' ? 'bg-error-tactical/10' : 'bg-primary-tactical/5'}`}></div>
+              <div className="absolute top-2 left-2 flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full animate-pulse ${activeIncident.severity === 'critical' ? 'bg-error-tactical' : 'bg-primary-tactical'}`}></span>
+                <span className={`text-[8px] font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-primary-tactical'}`}>LIVE OVERWATCH</span>
               </div>
-            </div>
-
-            {/* Services List */}
-            <div className="lg:col-span-1">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">
-                  {filteredServices.length}
-                </span>
-                Services Found
-              </h2>
-
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-red-500" />
-                </div>
-              ) : filteredServices.length === 0 ? (
-                <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-                  <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600">No services found in this radius</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {filteredServices.map((service) => (
-                    <div
-                      key={service.id}
-                      onClick={() => setSelectedService(selectedService?.id === service.id ? null : service)}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all transform hover:scale-105 animate-fade-in ${
-                        selectedService?.id === service.id
-                          ? `${getServiceColor(service.service_type)} border-opacity-100 shadow-lg`
-                          : `${getServiceColor(service.service_type)} border-opacity-50 hover:border-opacity-100`
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="mt-1">{getServiceIcon(service.service_type)}</div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                            <p className="text-xs text-gray-600 mt-1">{service.address}</p>
-                          </div>
-                        </div>
-                        {service.is_24_hours && (
-                          <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">24/7</span>
-                        )}
-                      </div>
-
-                      {selectedService?.id === service.id && (
-                        <div className="mt-3 pt-3 border-t border-current border-opacity-30 space-y-2 animate-fade-in">
-                          <a
-                            href={`tel:${service.phone}`}
-                            className={`flex items-center justify-center gap-2 w-full py-2 text-white font-semibold rounded-lg transition transform hover:scale-105 ${getButtonColor(service.service_type)}`}
-                          >
-                            <Phone className="w-4 h-4" />
-                            Call Now
-                          </a>
-                          <button className="flex items-center justify-center gap-2 w-full py-2 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-lg transition">
-                            <ArrowRight className="w-4 h-4" />
-                            Get Directions
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span className="material-symbols-outlined text-4xl text-white/50">visibility</span>
             </div>
           </div>
-        </section>
-
-        {/* Info Section */}
-        <section className="bg-blue-50 py-12 mt-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Emergency Response Times</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition">
-                <Hospital className="w-8 h-8 text-red-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-2">Hospitals</h3>
-                <p className="text-sm text-gray-600">Average response time: 5-15 minutes</p>
-              </div>
-              <div className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition">
-                <Shield className="w-8 h-8 text-blue-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-2">Police</h3>
-                <p className="text-sm text-gray-600">Average response time: 3-10 minutes</p>
-              </div>
-              <div className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition">
-                <Flame className="w-8 h-8 text-orange-600 mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-2">Fire Department</h3>
-                <p className="text-sm text-gray-600">Average response time: 2-8 minutes</p>
-              </div>
-            </div>
+          <div className="p-2 border-t border-on-tertiary/30 grid grid-cols-3 gap-1">
+            <button className="py-2 text-[10px] font-bold text-surface-dim bg-primary-tactical rounded hover:bg-primary-container transition">DISPATCH</button>
+            <button className="py-2 text-[10px] font-bold text-surface-dim bg-error-tactical rounded hover:bg-error-container transition">EVACUATE</button>
+            <button className="py-2 text-[10px] font-bold text-outline hover:text-on-surface rounded hover:bg-surface-container-high transition border border-outline-variant">MORE</button>
           </div>
-        </section>
-      </main>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fadeIn 0.5s ease-out;
-        }
-      `}</style>
-    </>
-  )
+        </div>
+      )}
+    </TacticalLayout>
+  );
 }
