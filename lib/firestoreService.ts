@@ -33,10 +33,11 @@ export const createDangerZone = async (data: any) => {
   });
 };
 
-export const upsertSurvivor = async (data: any) => {
+export const upsertSurvivor = async (qrCodeOrData: any, extraData?: any) => {
+  const payload = extraData ? { qrCode: qrCodeOrData, ...extraData } : qrCodeOrData;
   return await fetch('/api/db/survivors', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(payload)
   });
 };

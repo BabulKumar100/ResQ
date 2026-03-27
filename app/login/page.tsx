@@ -1,240 +1,153 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Loader2, Shield, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+
+const DEMO_USERS = [
+  { email: 'admin@resq.gov', password: 'ResQ@2024', role: 'COMMAND', badge: 'CMD-001' },
+  { email: 'field@resq.gov', password: 'FieldOps1', role: 'FIELD OPS', badge: 'FLD-042' },
+  { email: 'medic@resq.gov', password: 'MedUnit9', role: 'MEDIC', badge: 'MED-009' },
+];
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
-  const [step, setStep] = useState<'email' | 'otp'>('email')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [resendCooldown, setResendCooldown] = useState(0)
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-    try {
-      const response = await fetch('/api/auth/otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
+    await new Promise(r => setTimeout(r, 900));
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send OTP')
-      }
-
-      setStep('otp')
-      setResendCooldown(60)
-      const interval = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send OTP')
-    } finally {
-      setLoading(false)
+    const user = DEMO_USERS.find(u => u.email === email && u.password === password);
+    if (user) {
+      // Store session
+      localStorage.setItem('resq_user', JSON.stringify({ email: user.email, role: user.role, badge: user.badge }));
+      router.push('/resqmap');
+    } else {
+      setError('Invalid credentials. Try the demo accounts below.');
     }
-  }
+    setLoading(false);
+  };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      const response = await fetch('/api/auth/otp/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Invalid OTP')
-      }
-
-      router.push('/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify OTP')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0) return
-
-    setError('')
-    setLoading(true)
-
-    try {
-      const response = await fetch('/api/auth/otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to resend OTP')
-      }
-
-      setOtp('')
-      setResendCooldown(60)
-      const interval = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to resend OTP')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const quickLogin = (user: typeof DEMO_USERS[0]) => {
+    setEmail(user.email);
+    setPassword(user.password);
+  };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-fixed relative"
-      style={{
-        backgroundImage: 'url(/disaster-bg.jpg)',
-      }}
-    >
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/70"></div>
+    <div className="min-h-screen bg-[#080a0e] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Tactical grid bg */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#41ddc2 1px, transparent 1px), linear-gradient(90deg, #41ddc2 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+      <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#41ddc2 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
       
-      <div className="relative z-10 w-full max-w-md">
-        <Card className="w-full shadow-2xl border-gray-700 bg-gray-900/80 backdrop-blur">
-        <CardHeader>
-          <div className="text-center">
-            <CardTitle className="text-3xl font-bold text-white">Disaster Rescue</CardTitle>
-            <CardDescription className="text-gray-300 mt-2">
-              {step === 'email' ? 'Emergency Response Authentication' : 'Verify Your Identity'}
-            </CardDescription>
-          </div>
-        </CardHeader>
+      {/* Sweep glow */}
+      <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#41ddc2] opacity-5 rounded-full blur-[120px] pointer-events-none" />
 
-        <CardContent>
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#41ddc2]/10 border border-[#41ddc2]/30 mb-4 relative">
+            <Shield className="w-8 h-8 text-[#41ddc2]" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#41ddc2] rounded-full animate-pulse" />
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            ResQ<span className="text-[#41ddc2]">Map</span>
+          </h1>
+          <p className="text-sm text-gray-400 mt-1 font-mono tracking-widest">EMERGENCY INTELLIGENCE SYSTEM</p>
+          <div className="mt-2 inline-flex items-center gap-2 text-xs text-[#41ddc2] font-mono bg-[#41ddc2]/10 px-3 py-1 rounded-full border border-[#41ddc2]/20">
+            <span className="w-1.5 h-1.5 bg-[#41ddc2] rounded-full animate-pulse" />
+            SYSTEM ONLINE — SECURE CHANNEL
+          </div>
+        </div>
+
+        {/* Card */}
+        <div className="bg-[#111318]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_0_40px_rgba(65,221,194,0.05)]">
+          <h2 className="text-lg font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Operator Login</h2>
+          <p className="text-xs text-gray-400 mb-6 font-mono">Authorized personnel only — All access is logged</p>
+
           {error && (
-            <Alert variant="destructive" className="mb-4 border-red-500/50 bg-red-900/30">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-red-300">{error}</AlertDescription>
-            </Alert>
+            <div className="mb-4 p-3 rounded-lg bg-red-900/20 border border-red-500/30 flex items-center gap-2 text-red-400 text-xs font-mono">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
           )}
 
-          {step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2 text-gray-100">
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-mono text-gray-400 mb-1.5 tracking-wider">OPERATOR EMAIL</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                placeholder="user@resq.gov"
+                className="w-full bg-[#0c0e13] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#41ddc2]/50 focus:ring-1 focus:ring-[#41ddc2]/20 transition font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono text-gray-400 mb-1.5 tracking-wider">ACCESS CODE</label>
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="w-full bg-gray-800/50 border-gray-600 text-white placeholder-gray-500 focus:ring-red-500"
+                  placeholder="••••••••"
+                  className="w-full bg-[#0c0e13] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#41ddc2]/50 focus:ring-1 focus:ring-[#41ddc2]/20 transition font-mono"
                 />
-              </div>
-
-              <Button type="submit" className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-2 transition transform hover:scale-105 active:scale-95" disabled={loading || !email}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send OTP'
-                )}
-              </Button>
-
-              <div className="text-center text-sm text-gray-400">
-                Emergency responders only - Secure verification required
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-100">Enter 6-Digit OTP</label>
-                <p className="text-xs text-gray-400 mb-4">Check your email at <span className="text-gray-200 font-semibold">{email}</span></p>
-                <InputOTP value={otp} onChange={setOtp} maxLength={6}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-
-              <Button type="submit" className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-2 transition transform hover:scale-105 active:scale-95" disabled={loading || otp.length !== 6}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify OTP'
-                )}
-              </Button>
-
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={resendCooldown > 0 || loading}
-                  className="w-full text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep('email')
-                    setOtp('')
-                    setError('')
-                  }}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center text-sm text-muted-foreground hover:text-foreground gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Change email
+                <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="w-full py-3 bg-[#41ddc2] hover:bg-[#65fade] disabled:opacity-50 disabled:cursor-not-allowed text-[#080a0e] font-bold text-sm rounded-lg transition shadow-[0_0_20px_rgba(65,221,194,0.3)] hover:shadow-[0_0_30px_rgba(65,221,194,0.5)] flex items-center justify-center gap-2"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+              {loading ? 'AUTHENTICATING...' : 'AUTHENTICATE & ENTER'}
+            </button>
+          </form>
+
+          {/* Demo accounts */}
+          <div className="mt-6 pt-5 border-t border-white/5">
+            <p className="text-[10px] font-mono text-gray-500 mb-3 tracking-widest">DEMO OPERATOR ACCOUNTS</p>
+            <div className="space-y-2">
+              {DEMO_USERS.map((u) => (
+                <button
+                  key={u.email}
+                  onClick={() => quickLogin(u)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-lg border border-white/5 hover:border-[#41ddc2]/30 hover:bg-[#41ddc2]/5 transition group text-left"
+                >
+                  <div>
+                    <div className="text-xs font-mono text-white group-hover:text-[#41ddc2] transition">{u.email}</div>
+                    <div className="text-[10px] font-mono text-gray-500">{u.role} · Badge: {u.badge}</div>
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-600 group-hover:text-[#41ddc2] transition">AUTOFILL →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-600 mt-4 font-mono">
+          Powered by <span className="text-[#41ddc2]">ResQ Intelligence Network</span>
+        </p>
       </div>
     </div>
-  )
+  );
 }

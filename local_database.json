@@ -11,7 +11,7 @@
       "source": "sensor",
       "status": "new",
       "reportedBy": "system",
-      "createdAt": "2026-03-27T22:18:48.286Z"
+      "createdAt": "2026-03-27T22:36:57.909Z"
     },
     {
       "id": "m2",
@@ -24,7 +24,7 @@
       "source": "manual",
       "status": "new",
       "reportedBy": "user",
-      "createdAt": "2026-03-27T22:18:48.287Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     },
     {
       "id": "m3",
@@ -37,7 +37,7 @@
       "source": "sensor",
       "status": "new",
       "reportedBy": "system",
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     }
   ],
   "rescuers": [
@@ -95,7 +95,7 @@
       "distance": "1.2km",
       "type": "MEDICAL",
       "status": "CRITICAL",
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     },
     {
       "id": "res2",
@@ -104,7 +104,7 @@
       "distance": "3.4km",
       "type": "MULTI",
       "status": "OPERATIONAL",
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     },
     {
       "id": "res3",
@@ -113,7 +113,7 @@
       "distance": "5.1km",
       "type": "WATER",
       "status": "WARNING",
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     }
   ],
   "danger_zones": [
@@ -125,7 +125,7 @@
       "riskLevel": "HIGH",
       "description": "Fire moving NNE at 45km/h due to wind shear.",
       "active": true,
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     }
   ],
   "survivors": [
@@ -138,7 +138,7 @@
       "lat": 34.045,
       "lng": -118.255,
       "notes": "Triage: RED. Chemical burns.",
-      "updatedAt": "2026-03-27T22:18:48.288Z"
+      "updatedAt": "2026-03-27T22:36:57.910Z"
     },
     {
       "id": "s2",
@@ -149,7 +149,7 @@
       "lat": 34.041,
       "lng": -118.251,
       "notes": "Triage: YELLOW. Minor abrasions.",
-      "updatedAt": "2026-03-27T22:18:48.288Z"
+      "updatedAt": "2026-03-27T22:36:57.910Z"
     },
     {
       "id": "s3",
@@ -160,7 +160,7 @@
       "lat": 34.057,
       "lng": -118.239,
       "notes": "Triage: BLACK. Severe trauma.",
-      "updatedAt": "2026-03-27T22:18:48.288Z"
+      "updatedAt": "2026-03-27T22:36:57.910Z"
     }
   ],
   "sos_beacons": [
@@ -172,7 +172,7 @@
       "type": "medical",
       "urgency": "critical",
       "status": "active",
-      "createdAt": "2026-03-27T22:18:48.288Z"
+      "createdAt": "2026-03-27T22:36:57.910Z"
     }
   ],
   "live_events": []
