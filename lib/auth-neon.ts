@@ -1,7 +1,5 @@
-import { neon } from '@neondatabase/serverless'
+import { sql } from './neon-db'
 import crypto from 'crypto'
-
-const sql = neon(process.env.DATABASE_URL || '')
 
 // Hash password using Node's crypto
 function hashPassword(password: string): string {
