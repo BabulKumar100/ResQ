@@ -5,152 +5,221 @@ import { TacticalLayout } from '@/components/ui/TacticalLayout';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 import { useRealtimeIncidents, useRealtimeRescuers } from '@/lib/useRealtime';
+import { useMapStore } from '@/store/mapStore';
 import { formatDistanceToNow } from 'date-fns';
 
-const ResQMap = dynamic(() => import('@/components/ResQMap').then(mod => ({ default: mod.ResQMap })), {
+const TacticalMap = dynamic(() => import('@/components/map/TacticalMap'), {
   ssr: false,
-  loading: () => <div className="w-full h-full bg-surface-dim flex items-center justify-center"><Loader2 className="animate-spin text-primary-tactical" /></div>,
+  loading: () => (
+    <div className="w-full h-full bg-[#070d1a] flex flex-col items-center justify-center gap-3 text-[#41ddc2]/50">
+      <Loader2 className="animate-spin w-8 h-8" />
+      <span className="text-xs font-mono tracking-widest animate-pulse">INITIALIZING TACTICAL MAP...</span>
+    </div>
+  ),
 });
 
 export default function EmergencyMapPage() {
-  const [activeLayer, setActiveLayer] = useState<'thermal' | 'structural' | 'population' | 'hazard' | 'clear'>('hazard');
   const { incidents } = useRealtimeIncidents();
   const { rescuers } = useRealtimeRescuers();
+  const { overlays, toggleOverlay, flyToTarget, setFlyToTarget, setMouseLatLng, mouseLatLng } = useMapStore();
+  const [selectedIncident, setSelectedIncident] = useState<any>(null);
+  const [toast, setToast] = useState('');
+  const [dispatchLoading, setDispatchLoading] = useState(false);
 
-  const mapMarkers = [
-    { position: [34.0522, -118.2437] as [number, number], title: 'Command Node', type: 'default', description: 'Main HQ' },
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  const criticalIncidents = incidents.filter(i => i.severity === 'critical');
+  const activeIncident = selectedIncident || criticalIncidents[0] || incidents[0] || null;
+
+  const markers = [
     ...incidents.map(i => ({
       position: [i.lat || 34.0522, i.lng || -118.2437] as [number, number],
-      title: i.type.toUpperCase(),
+      title: (i.title || i.type || 'Unknown').toUpperCase(),
       type: 'emergency' as const,
-      description: i.description || i.address
+      description: i.description || i.address || '',
+      severity: i.severity,
+      id: i.id,
     })),
     ...rescuers.map(r => ({
-      position: [r.lat || 34.0522, r.lng || -118.2437] as [number, number],
+      position: [r.lat || 34.0, r.lng || -118.2] as [number, number],
       title: r.name,
       type: 'resource' as const,
-      description: `Role: ${r.role}, Status: ${r.status}`
-    }))
+      description: `${r.agency} · ${r.status?.toUpperCase()} · 🔋${r.fuelPct}%`,
+      severity: undefined,
+      id: r.id,
+    })),
   ];
-  
-  const criticalIncidents = incidents.filter(i => i.severity === 'critical');
-  const activeIncident = criticalIncidents[0] || incidents[0] || null;
+
+  const handleDispatch = async () => {
+    if (!activeIncident) return;
+    setDispatchLoading(true);
+    await fetch('/api/db/incidents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...activeIncident, status: 'dispatched' })
+    });
+    await fetch('/api/db/live_events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'DISPATCH', message: `Units dispatched to ${activeIncident.type} @ ${activeIncident.address}`, severity: 'info', locationName: activeIncident.address })
+    });
+    showToast(`🚁 Units dispatched to ${activeIncident.type?.toUpperCase()}`);
+    setDispatchLoading(false);
+  };
+
+  const handleEvacuate = async () => {
+    if (!activeIncident) return;
+    await fetch('/api/db/incidents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...activeIncident, evacuationOrdered: true })
+    });
+    showToast(`🚨 EVACUATION ORDER issued for ${activeIncident.address}`);
+  };
+
+  const overlayConfig = [
+    { key: 'thermal' as const, label: 'THERMAL IMAGING', icon: 'thermostat', color: 'text-red-400', desc: 'Active heat signatures detector' },
+    { key: 'structural' as const, label: 'STRUCTURAL DAMAGE', icon: 'domain_disabled', color: 'text-orange-400', desc: 'Building integrity zones' },
+    { key: 'population' as const, label: 'POPULATION DENSITY', icon: 'groups', color: 'text-[#41ddc2]', desc: 'Cellular heatmap aggregation' },
+    { key: 'hazard' as const, label: 'BIOLOGICAL HAZARDS', icon: 'coronavirus', color: 'text-green-400', desc: 'Toxin & radiation spread zones' },
+  ];
 
   return (
     <TacticalLayout>
-      <div className="absolute inset-0 bg-surface-container-lowest z-0">
-        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#41ddc2 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-        <div className="w-full h-full relative">
-          <ResQMap 
-            center={[34.0522, -118.2437]} 
-            zoom={14} 
-            markers={mapMarkers} 
-          />
+      {toast && (
+        <div className="fixed top-4 right-4 z-[9999] bg-[#111318] border border-[#41ddc2]/50 text-white text-xs font-mono px-4 py-3 rounded-xl shadow-xl">{toast}</div>
+      )}
+
+      <div className="absolute inset-0">
+        <TacticalMap
+          center={[34.0522, -118.2437]}
+          zoom={13}
+          markers={markers}
+          activeOverlays={overlays}
+          onMouseMove={(lat, lng) => setMouseLatLng({ lat, lng })}
+          onMarkerClick={(m) => {
+            const inc = incidents.find(i => i.type?.toUpperCase() === m.title || i.id === m.id);
+            if (inc) setSelectedIncident(inc);
+          }}
+          flyTo={flyToTarget}
+        />
+      </div>
+
+      {/* Top Stats */}
+      <div className="absolute top-4 left-4 flex gap-3 z-10 pointer-events-none">
+        <div className="bg-[#111318]/90 backdrop-blur px-4 py-3 rounded-xl border border-[#41ddc2]/20 flex items-center gap-3">
+          <span className="material-symbols-outlined text-[#41ddc2]">person_play</span>
+          <div>
+            <div className="text-xl font-bold font-mono text-[#41ddc2]">{rescuers.length}</div>
+            <div className="text-[10px] text-gray-500 tracking-wider">ACTIVE RESPONDERS</div>
+          </div>
+        </div>
+        <div className={`bg-[#111318]/90 backdrop-blur px-4 py-3 rounded-xl border flex items-center gap-3 ${criticalIncidents.length > 0 ? 'border-red-500/40 animate-pulse' : 'border-white/10'}`}>
+          <span className="material-symbols-outlined text-red-400">warning</span>
+          <div>
+            <div className="text-xl font-bold font-mono text-red-400">{criticalIncidents.length}</div>
+            <div className="text-[10px] text-gray-500 tracking-wider">CRITICAL ALERTS</div>
+          </div>
         </div>
       </div>
 
-      {/* Top Data Overlay */}
-      <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-10 pointer-events-none">
-        <div className="flex gap-4">
-          <div className="glass-panel p-3 rounded-lg border border-primary-container/30 flex items-center gap-3">
-            <span className="material-symbols-outlined text-tertiary-container">person_play</span>
-            <div>
-              <div className="text-xl font-bold font-mono text-tertiary-container">{rescuers.length}</div>
-              <div className="text-[10px] text-outline tracking-wider">ACTIVE RESPONDERS</div>
-            </div>
-          </div>
-          <div className="glass-panel p-3 rounded-lg border border-error-container/50 flex items-center gap-3 animate-pulse-red">
-            <span className="material-symbols-outlined text-error-tactical">warning</span>
-            <div>
-              <div className="text-xl font-bold font-mono text-error-tactical">{criticalIncidents.length}</div>
-              <div className="text-[10px] text-outline tracking-wider">CRITICAL ALERTS</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-panel px-4 py-2 rounded-full border border-primary-tactical/30 flex items-center gap-4 hidden sm:flex pointer-events-auto">
+      {/* SAT-LINK Badge */}
+      <div className="absolute top-4 right-4 z-10">
+        <div className="bg-[#111318]/90 backdrop-blur px-4 py-2 rounded-full border border-[#41ddc2]/20 flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary-tactical animate-pulse"></span>
-            <span className="text-xs font-mono text-primary-tactical">SAT-LINK ACTIVE</span>
+            <span className="w-2 h-2 rounded-full bg-[#41ddc2] animate-pulse" />
+            <span className="text-xs font-mono text-[#41ddc2]">SAT-LINK ACTIVE</span>
           </div>
-          <div className="w-px h-4 bg-outline/30"></div>
-          <span className="text-xs font-mono text-outline-variant">UPTIME: 99.9%</span>
+          <div className="w-px h-4 bg-white/10" />
+          <span className="text-xs font-mono text-gray-500">UPTIME: 99.9%</span>
         </div>
       </div>
 
-      {/* Floating Control Panel (Left) */}
-      <div className="absolute left-6 top-32 w-72 glass-panel rounded-xl border border-on-tertiary/40 overflow-hidden z-10 pointer-events-auto">
-        <div className="p-4 border-b border-on-tertiary/30 bg-surface-container/50">
-          <h2 className="font-headline font-semibold text-primary-tactical text-sm tracking-wide flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">layers</span>
-            TACTICAL OVERLAYS
-          </h2>
+      {/* Tactical Overlays Panel */}
+      <div className="absolute left-4 top-32 w-64 bg-[#111318]/95 backdrop-blur rounded-xl border border-white/10 overflow-hidden z-10 pointer-events-auto">
+        <div className="p-3 border-b border-white/5 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[#41ddc2] text-lg">layers</span>
+          <h2 className="font-bold text-[#41ddc2] text-sm tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>TACTICAL OVERLAYS</h2>
         </div>
-        <div className="p-4 space-y-3">
-          {[
-            { id: 'thermal', label: 'THERMAL IMAGING', icon: 'thermostat', color: 'text-error-tactical', desc: 'Active heat signatures detector' },
-            { id: 'structural', label: 'STRUCTURAL DAMAGE', icon: 'domain_disabled', color: 'text-resq-high', desc: 'Building integrity assessment' },
-            { id: 'population', label: 'POPULATION DENSITY', icon: 'groups', color: 'text-primary-tactical', desc: 'Cellular heatmap aggregation' },
-            { id: 'hazard', label: 'BIOLOGICAL HAZARDS', icon: 'coronavirus', color: 'text-resq-low', desc: 'Toxin & radiation spread' },
-          ].map((layer) => (
+        <div className="p-3 space-y-2">
+          {overlayConfig.map(layer => (
             <button
-              key={layer.id}
-              onClick={() => setActiveLayer(layer.id as any)}
-              className={`w-full group flex items-start gap-3 p-3 rounded-lg transition-all border ${activeLayer === layer.id ? 'bg-primary-container/10 border-primary-container/50' : 'bg-surface-container-high/30 border-transparent hover:bg-surface-container-low hover:border-on-tertiary/50'}`}
+              key={layer.key}
+              onClick={() => toggleOverlay(layer.key)}
+              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition ${overlays[layer.key] ? 'bg-[#41ddc2]/10 border-[#41ddc2]/30' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`}
             >
-              <span className={`material-symbols-outlined ${activeLayer === layer.id ? layer.color : 'text-outline-variant group-hover:text-primary-tactical'}`}>{layer.icon}</span>
-              <div className="text-left">
-                <div className={`text-xs font-mono font-bold ${activeLayer === layer.id ? layer.color : 'text-on-surface'}`}>{layer.label}</div>
-                <div className="text-[10px] text-outline mt-1">{layer.desc}</div>
+              <span className={`material-symbols-outlined ${overlays[layer.key] ? layer.color : 'text-gray-600'}`}>{layer.icon}</span>
+              <div className="text-left flex-1">
+                <div className={`text-xs font-mono font-bold ${overlays[layer.key] ? layer.color : 'text-gray-400'}`}>{layer.label}</div>
+                <div className="text-[9px] text-gray-600 mt-0.5">{layer.desc}</div>
+              </div>
+              <div className={`w-8 h-4 rounded-full transition-colors ${overlays[layer.key] ? 'bg-[#41ddc2]' : 'bg-gray-700'}`}>
+                <div className={`w-3 h-3 m-0.5 bg-white rounded-full transition-transform ${overlays[layer.key] ? 'translate-x-4' : 'translate-x-0'}`} />
               </div>
             </button>
           ))}
         </div>
+        {/* Incidents quick list */}
+        <div className="border-t border-white/5 p-3">
+          <div className="text-[10px] font-mono text-gray-500 mb-2">LIVE INCIDENTS ({incidents.length})</div>
+          <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
+            {incidents.map(inc => (
+              <button key={inc.id} onClick={() => { setSelectedIncident(inc); setFlyToTarget([inc.lat || 34.0522, inc.lng || -118.2437]); }}
+                className="w-full flex items-center gap-2 p-2 rounded text-left hover:bg-white/5 transition">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${inc.severity === 'critical' ? 'bg-red-500 animate-pulse' : inc.severity === 'high' ? 'bg-orange-400' : 'bg-yellow-400'}`} />
+                <span className="text-xs text-gray-300 truncate">{(inc.title || inc.type || 'Unknown').toUpperCase()}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Right Tactical Detail Panel */}
+      {/* Right Incident Detail Panel */}
       {activeIncident && (
-        <div className="absolute right-6 top-24 w-80 glass-panel rounded-xl border border-error-container/40 overflow-hidden z-10 animate-slide-in-right pointer-events-auto hidden md:block">
-          <div className={`p-4 ${activeIncident.severity === 'critical' ? 'bg-error-container/20 border-error-tactical/20' : 'bg-surface-container/50 border-outline/20'} border-b flex justify-between items-center`}>
+        <div className="absolute right-4 top-20 w-76 max-w-xs bg-[#111318]/95 backdrop-blur rounded-xl border border-red-500/30 overflow-hidden z-10 pointer-events-auto">
+          <div className={`p-4 border-b flex justify-between items-center ${activeIncident.severity === 'critical' ? 'border-red-500/20 bg-red-900/10' : 'border-white/10'}`}>
             <div className="flex items-center gap-2">
-              <span className={`material-symbols-outlined text-sm ${activeIncident.severity === 'critical' ? 'text-error-tactical animate-pulse' : 'text-primary-tactical'}`}>adjust</span>
-              <span className={`text-xs font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-primary-tactical'}`}>INCIDENT {activeIncident.id?.substring(0,6).toUpperCase()}</span>
+              <span className={`material-symbols-outlined text-sm ${activeIncident.severity === 'critical' ? 'text-red-400 animate-pulse' : 'text-[#41ddc2]'}`}>adjust</span>
+              <span className={`text-xs font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-red-400' : 'text-[#41ddc2]'}`}>
+                INCIDENT {activeIncident.incidentCode || activeIncident.id?.substring(0, 4).toUpperCase()}
+              </span>
             </div>
-            <span className="text-[10px] font-mono text-outline">
-               {activeIncident.createdAt ? formatDistanceToNow((activeIncident.createdAt as any).toDate ? (activeIncident.createdAt as any).toDate() : new Date(activeIncident.createdAt as any), { addSuffix: true }).toUpperCase() : 'JUST NOW'}
-            </span>
+            <button onClick={() => setSelectedIncident(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
           </div>
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-4">
             <div>
-              <div className="text-lg font-headline font-bold text-on-surface">{activeIncident.type.toUpperCase()}</div>
-              <div className="text-sm text-outline mt-1">{activeIncident.description || activeIncident.address}</div>
+              <div className="text-base font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{(activeIncident.title || activeIncident.type || '').toUpperCase()}</div>
+              <div className="text-xs text-gray-400 mt-1">{activeIncident.description || activeIncident.address}</div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-surface-container-lowest p-3 rounded border border-on-tertiary/20">
-                <div className="text-[10px] text-outline font-mono mb-1">THREAT LEVEL</div>
-                <div className={`${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-resq-high'} font-bold text-sm uppercase`}>{activeIncident.severity} ZONE</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-[#0c0e13] p-3 rounded border border-white/5">
+                <div className="text-[10px] text-gray-500 font-mono mb-1">THREAT LEVEL</div>
+                <div className={`font-bold text-sm ${activeIncident.severity === 'critical' ? 'text-red-400' : 'text-orange-400'}`}>{activeIncident.severity?.toUpperCase()} ZONE</div>
               </div>
-              <div className="bg-surface-container-lowest p-3 rounded border border-on-tertiary/20">
-                <div className="text-[10px] text-outline font-mono mb-1">UNITS</div>
-                <div className="text-primary-tactical font-bold text-sm">{activeIncident.assignedTo?.length || 0} ASSIGNED</div>
+              <div className="bg-[#0c0e13] p-3 rounded border border-white/5">
+                <div className="text-[10px] text-gray-500 font-mono mb-1">SOURCE</div>
+                <div className="text-[#41ddc2] font-bold text-sm">{activeIncident.source || 'MANUAL'}</div>
               </div>
             </div>
-            
-            <div className="w-full h-32 bg-surface-dim rounded border border-outline-variant/30 flex items-center justify-center relative overflow-hidden">
-              {/* Live drone feed placeholder */}
-              <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1615631221590-7d7211110091?q=80&w=600')] bg-cover bg-center mix-blend-luminosity"></div>
-              <div className={`absolute inset-0 ${activeIncident.severity === 'critical' ? 'bg-error-tactical/10' : 'bg-primary-tactical/5'}`}></div>
+            <div className="text-[10px] text-gray-500 font-mono">
+              📍 {activeIncident.address || `${activeIncident.lat?.toFixed(4)}, ${activeIncident.lng?.toFixed(4)}`}
+            </div>
+            {/* Live feed preview */}
+            <div className="w-full h-28 bg-[#0c0e13] rounded border border-white/5 flex items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 opacity-30 bg-[url('https://images.unsplash.com/photo-1615631221590-7d7211110091?q=80&w=400')] bg-cover mix-blend-luminosity" />
               <div className="absolute top-2 left-2 flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full animate-pulse ${activeIncident.severity === 'critical' ? 'bg-error-tactical' : 'bg-primary-tactical'}`}></span>
-                <span className={`text-[8px] font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-error-tactical' : 'text-primary-tactical'}`}>LIVE OVERWATCH</span>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-red-500" />
+                <span className="text-[8px] font-mono text-red-400 font-bold">LIVE OVERWATCH</span>
               </div>
-              <span className="material-symbols-outlined text-4xl text-white/50">visibility</span>
+              <span className="material-symbols-outlined text-3xl text-white/30">visibility</span>
             </div>
           </div>
-          <div className="p-2 border-t border-on-tertiary/30 grid grid-cols-3 gap-1">
-            <button className="py-2 text-[10px] font-bold text-surface-dim bg-primary-tactical rounded hover:bg-primary-container transition">DISPATCH</button>
-            <button className="py-2 text-[10px] font-bold text-surface-dim bg-error-tactical rounded hover:bg-error-container transition">EVACUATE</button>
-            <button className="py-2 text-[10px] font-bold text-outline hover:text-on-surface rounded hover:bg-surface-container-high transition border border-outline-variant">MORE</button>
+          <div className="p-3 border-t border-white/5 grid grid-cols-3 gap-2">
+            <button onClick={handleDispatch} disabled={dispatchLoading} className="py-2 text-[10px] font-bold text-[#080a0e] bg-[#41ddc2] rounded hover:bg-white transition disabled:opacity-50">
+              {dispatchLoading ? '...' : 'DISPATCH'}
+            </button>
+            <button onClick={handleEvacuate} className="py-2 text-[10px] font-bold text-white bg-red-500 rounded hover:bg-red-400 transition">EVACUATE</button>
+            <button onClick={() => setFlyToTarget([activeIncident.lat, activeIncident.lng])} className="py-2 text-[10px] font-bold text-gray-400 rounded hover:bg-white/5 border border-white/10 transition">FLY TO</button>
           </div>
         </div>
       )}
