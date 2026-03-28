@@ -9,7 +9,8 @@ import {
   setDoc
 } from './firebase'
 // @ts-ignore
-import { serverTimestamp, User } from 'firebase/firestore'
+import { serverTimestamp } from 'firebase/firestore'
+import { User } from 'firebase/auth'
 import { useAuthStore } from '@/store/authStore'
 
 export const loginWithEmail = async (email: string, pass: string) => {
@@ -90,7 +91,7 @@ export const syncUserProfile = async (user: User) => {
          email: user.email,
          name: user.displayName,
          photoURL: user.photoURL,
-         ...(profile || {})
+         ...(profile as any || {})
        } as any)
      }
   } catch (e) {

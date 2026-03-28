@@ -4,7 +4,7 @@ import 'leaflet.offline'
 export const setupTileCaching = (map: L.Map) => {
   // 6. Map Tile Caching for India
   // Leaflet.offline tile layer with IndexedDB storage
-  const baseLayer = L.tileLayer.offline(
+  const baseLayer = (L.tileLayer as any).offline(
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
     {
       attribution: '© OpenStreetMap contributors © CARTO',
@@ -17,7 +17,7 @@ export const setupTileCaching = (map: L.Map) => {
   baseLayer.addTo(map);
 
   // Control to manage offline tiles
-  const progress = L.control({ position: 'topright' });
+  const progress = (L.control as any)({ position: 'topright' });
   progress.onAdd = () => {
     const div = L.DomUtil.create('div', 'bg-gray-950/90 border border-gray-800 p-3 rounded-xl backdrop-blur shadow-2xl hidden');
     div.id = 'tile-progress-container';

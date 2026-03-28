@@ -84,8 +84,7 @@ export function ResqMap() {
       )
 
       // Highlight marker
-      const layers = mapInstanceRef.current.getLayers()
-      layers.forEach((layer: any) => {
+      mapInstanceRef.current.eachLayer((layer: any) => {
         if (layer.setStyle) {
           layer.setStyle({
             weight: layer.getLatLng?.()?.lat === selectedIncident.lat ? 4 : 2,

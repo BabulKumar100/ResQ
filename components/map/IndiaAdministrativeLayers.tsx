@@ -84,7 +84,7 @@ export function IndiaAdministrativeLayers() {
       )}
 
       {selectedDistrict && (
-        <Popup position={selectedDistrict.latlng} onClose={() => setSelectedDistrict(null)}>
+        <Popup position={selectedDistrict.latlng} eventHandlers={{ remove: () => setSelectedDistrict(null) }}>
           <div className="p-3 bg-gray-950 text-white rounded-lg border border-gray-800 shadow-2xl min-w-[200px]">
             <div className="flex items-center gap-2 mb-2">
               <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${

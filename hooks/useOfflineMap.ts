@@ -63,7 +63,11 @@ export function useOfflineMap() {
         timestamp: Date.now(),
       }
 
-      await store.add({ region, type: 'region-cache' })
+      const request = store.add({ region, type: 'region-cache' })
+      await new Promise((resolve, reject) => {
+        request.onsuccess = resolve
+        request.onerror = () => reject(request.error)
+      })
       setState((prev) => ({
         ...prev,
         cachedRegions: prev.cachedRegions + 1,
@@ -81,7 +85,11 @@ export function useOfflineMap() {
       const db = await openIndexedDB()
       const tx = db.transaction(['syncQueue'], 'readwrite')
       const store = tx.objectStore('syncQueue')
-      const items = await store.getAll()
+      const getAllReq = store.getAll()
+      const items = await new Promise<any[]>((resolve, reject) => {
+        getAllReq.onsuccess = () => resolve(getAllReq.result)
+        getAllReq.onerror = () => reject(getAllReq.error)
+      })
 
       for (const item of items) {
         await fetch('/api/sync', {
@@ -89,7 +97,11 @@ export function useOfflineMap() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item),
         })
-        await store.delete(item.id)
+        const deleteReq = store.delete(item.id)
+        await new Promise((resolve, reject) => {
+          deleteReq.onsuccess = resolve
+          deleteReq.onerror = () => reject(deleteReq.error)
+        })
       }
 
       setState((prev) => ({

@@ -43,7 +43,8 @@ export default function LoginPage() {
     try {
       const user = await loginWithGoogle()
       if (user) {
-        toast.success(`Welcome back, ${user.displayName}!`)
+        const name = 'displayName' in user ? user.displayName : (user as any).email || 'Rescuer';
+        toast.success(`Welcome back, ${name}!`)
         router.push('/dashboard')
       }
     } catch (e: any) {
