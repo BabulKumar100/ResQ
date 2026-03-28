@@ -1,0 +1,49 @@
+app/admin/page.tsx(76,30): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+app/admin/page.tsx(76,46): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+app/api/cron/sos-check/route.ts(25,28): error TS7006: Parameter 'docSnap' implicitly has an 'any' type.
+app/drones/page.tsx(20,35): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/drones/page.tsx(170,28): error TS7006: Parameter 'unit' implicitly has an 'any' type.
+app/inventory/page.tsx(53,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/inventory/page.tsx(53,25): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/page.tsx(128,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/inventory/page.tsx(128,39): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/login/page.tsx(46,45): error TS2339: Property 'displayName' does not exist on type '{ uid: string; email: string; displayName: string; getIdToken: () => Promise<string>; } | { uid: string; }'.
+  Property 'displayName' does not exist on type '{ uid: string; }'.
+app/predictions/page.tsx(204,45): error TS7006: Parameter 'inc' implicitly has an 'any' type.
+app/predictions/page.tsx(204,50): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/predictions/page.tsx(216,29): error TS7006: Parameter 'z' implicitly has an 'any' type.
+app/predictions/page.tsx(216,32): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/resqmap/page.tsx(118,30): error TS7006: Parameter 'incident' implicitly has an 'any' type.
+app/resqmap/page.tsx(163,64): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/resqmap/page.tsx(196,43): error TS7006: Parameter 'inc' implicitly has an 'any' type.
+app/resqmap/page.tsx(196,48): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/resqmap/page.tsx(208,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/resqmap/page.tsx(208,45): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/resqmap/page.tsx(245,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/resqmap/resqmap-client.tsx(101,18): error TS2345: Argument of type '{ id: string; location: string; coords: number[]; escalationCount: number; timestamp: string; status: "ACTIVE"; }[]' is not assignable to parameter of type 'SOSAlert[]'.
+  Type '{ id: string; location: string; coords: number[]; escalationCount: number; timestamp: string; status: "ACTIVE"; }' is not assignable to type 'SOSAlert'.
+    Types of property 'coords' are incompatible.
+      Type 'number[]' is not assignable to type '[number, number]'.
+        Target requires 2 element(s) but source may have fewer.
+app/resqmap/resqmap-client.tsx(102,17): error TS2345: Argument of type '({ id: string; name: string; status: "ACTIVE"; location: number[]; team: string; availability: boolean; } | { id: string; name: string; status: "BUSY"; location: number[]; team: string; availability: boolean; } | { ...; })[]' is not assignable to parameter of type 'Rescuer[]'.
+  Type '{ id: string; name: string; status: "ACTIVE"; location: number[]; team: string; availability: boolean; } | { id: string; name: string; status: "BUSY"; location: number[]; team: string; availability: boolean; } | { ...; }' is not assignable to type 'Rescuer'.
+    Type '{ id: string; name: string; status: "ACTIVE"; location: number[]; team: string; availability: boolean; }' is not assignable to type 'Rescuer'.
+      Types of property 'location' are incompatible.
+        Type 'number[]' is not assignable to type '[number, number]'.
+          Target requires 2 element(s) but source may have fewer.
+app/survivors/page.tsx(60,66): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/survivors/page.tsx(61,68): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/survivors/page.tsx(62,62): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/survivors/page.tsx(115,39): error TS7006: Parameter 'person' implicitly has an 'any' type.
+components/map/IndiaAdministrativeLayers.tsx(87,51): error TS2322: Type '{ children: Element; position: any; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes & PopupProps & RefAttributes<Popup>'.
+  Property 'onClose' does not exist on type 'IntrinsicAttributes & PopupProps & RefAttributes<Popup>'.
+components/map/ReliefWebMarkers.tsx(6,10): error TS2724: '"@/lib/indiaDisasterData"' has no exported member named 'fetchReliefWebDisasters'. Did you mean 'fetchReliefWebIndia'?
+components/map/ResqMap.tsx(87,45): error TS2339: Property 'getLayers' does not exist on type 'Map'.
+hooks/useOfflineMap.ts(86,26): error TS2488: Type 'IDBRequest<any[]>' must have a '[Symbol.iterator]()' method that returns an iterator.
+lib/auth-neon.ts(44,79): error TS1064: The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<boolean>'?
+lib/auth-utils.ts(93,10): error TS2698: Spread types may only be created from object types.
+lib/routing-utils.ts(2,23): error TS7016: Could not find a declaration file for module '@turf/turf'. 'C:/Users/Dell/Downloads/ResQ-main/ResQ-main/node_modules/@turf/turf/dist/es/index.js' implicitly has an 'any' type.
+  There are types at 'C:/Users/Dell/Downloads/ResQ-main/ResQ-main/node_modules/@turf/turf/index.d.ts', but this result could not be resolved when respecting package.json "exports". The '@turf/turf' library may need to update its package.json or typings.
+lib/tile-cache.ts(7,33): error TS2339: Property 'offline' does not exist on type 'typeof tileLayer'.
+lib/tile-cache.ts(20,22): error TS2349: This expression is not callable.
+  Type 'typeof control' has no call signatures.

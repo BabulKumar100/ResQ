@@ -73,7 +73,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-mono">
               <Clock className="w-4 h-4 text-gray-500" />
-              T+ {Math.floor(uptime / 60)}m {uptime % 60}s
+              T+ {uptime}
             </div>
           </div>
         </div>

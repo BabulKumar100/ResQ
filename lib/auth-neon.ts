@@ -41,7 +41,7 @@ export async function getUserByEmail(email: string) {
   }
 }
 
-export async function verifyPassword(password: string, passwordHash: string): boolean {
+export function verifyPassword(password: string, passwordHash: string): boolean {
   const hash = hashPassword(password)
   return hash === passwordHash
 }

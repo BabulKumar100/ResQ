@@ -90,7 +90,7 @@ export const syncUserProfile = async (user: User) => {
          email: user.email,
          name: user.displayName,
          photoURL: user.photoURL,
-         ...profile
+         ...(profile || {})
        } as any)
      }
   } catch (e) {
