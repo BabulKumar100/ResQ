@@ -3,8 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useSystemStore } from '@/store/systemStore';
+import { useSystemStore, Notification } from '@/store/systemStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatDistanceToNow } from 'date-fns';
+import { DisasterSearch } from '@/components/DisasterSearch';
+import { Menu, X, Bell, Shield, LogOut, ChevronRight, Activity, Globe, Map as MapIcon, Layers, Radio } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TacticalLayoutProps {
   children: React.ReactNode;
@@ -14,208 +18,205 @@ export const TacticalLayout: React.FC<TacticalLayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { connectionStatus, uptime, notifications, unreadCount, markAllRead } = useSystemStore();
-  const [criticals, setCriticals] = useState(3);
+  const { user, logout } = useAuthStore();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [search, setSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [mousePos, setMousePos] = useState({ lat: 34.0522, lng: -118.2437 });
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // Live critical count from local DB
-  useEffect(() => {
-    const fetchCriticals = async () => {
-      try {
-        const res = await fetch('/api/db/incidents?t=' + Date.now());
-        if (res.ok) {
-          const data = await res.json();
-          const count = data.filter((i: any) => i.severity === 'critical' && i.status !== 'resolved').length;
-          setCriticals(count);
-        }
-      } catch { }
-    };
-    fetchCriticals();
-    const int = setInterval(fetchCriticals, 5000);
-    return () => clearInterval(int);
-  }, []);
-
-  // Global search
-  useEffect(() => {
-    if (!search || search.length < 2) { setSearchResults([]); return; }
-    const doSearch = async () => {
-      try {
-        const [inc, surv, drones] = await Promise.all([
-          fetch('/api/db/incidents').then(r => r.json()).catch(() => []),
-          fetch('/api/db/survivors').then(r => r.json()).catch(() => []),
-          fetch('/api/db/rescuers').then(r => r.json()).catch(() => []),
-        ]);
-        const q = search.toLowerCase();
-        const results: any[] = [
-          ...inc.filter((i: any) => i.type?.toLowerCase().includes(q) || i.address?.toLowerCase().includes(q)).slice(0, 3).map((i: any) => ({ ...i, _cat: 'INCIDENT', _url: '/resqmap' })),
-          ...surv.filter((s: any) => s.name?.toLowerCase().includes(q) || s.qrCode?.toLowerCase().includes(q)).slice(0, 3).map((s: any) => ({ ...s, _cat: 'SURVIVOR', _url: '/survivors' })),
-          ...drones.filter((d: any) => d.name?.toLowerCase().includes(q)).slice(0, 2).map((d: any) => ({ ...d, _cat: 'UNIT', _url: '/drones' })),
-        ];
-        setSearchResults(results);
-      } catch { }
-    };
-    const t = setTimeout(doSearch, 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  // Close notifs on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifs(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
+  // Constants for Dashboard layout (Mobile Responsive Fix 8)
   const navItems = [
-    { icon: 'public', label: 'Map', path: '/map' },
-    { icon: 'grid_view', label: 'Dashboard', path: '/resqmap' },
-    { icon: 'groups', label: 'Survivors', path: '/survivors' },
-    { icon: 'flight', label: 'Drones', path: '/drones' },
-    { icon: 'analytics', label: 'Predictions', path: '/predictions' },
-    { icon: 'inventory_2', label: 'Inventory', path: '/inventory' },
-    { icon: 'sos', label: 'SOS', path: '/sos' },
-  ];
+    { icon: <MapIcon className="w-5 h-5"/>, label: 'Tactical Map', path: '/map', roles: ['admin', 'dispatcher', 'rescuer', 'viewer'] },
+    { icon: <Activity className="w-5 h-5"/>, label: 'Analytics', path: '/resqmap', roles: ['admin', 'dispatcher'] },
+    { icon: <Globe className="w-5 h-5"/>, label: 'India Portal', path: '/', roles: ['admin', 'dispatcher', 'rescuer', 'viewer'] },
+    { icon: <Layers className="w-5 h-5"/>, label: 'Resources', path: '/inventory', roles: ['admin', 'dispatcher'] },
+    { icon: <Radio className="w-5 h-5"/>, label: 'SOS Hub', path: '/sos', roles: ['admin', 'dispatcher', 'rescuer'] },
+  ].filter(item => !user || item.roles.includes(user.role));
 
   const statusConfig = {
-    online: { color: 'text-[#41ddc2]', bg: 'bg-[#41ddc2]/10 border-[#41ddc2]/30', text: 'SYSTEM NOMINAL', icon: 'wifi' },
-    degraded: { color: 'text-orange-400', bg: 'bg-orange-900/20 border-orange-500/30', text: 'SYSTEM DEGRADED', icon: 'wifi_off' },
-    offline: { color: 'text-red-400', bg: 'bg-red-900/20 border-red-500/30', text: 'SYSTEM CRITICAL', icon: 'signal_wifi_off' },
+    online: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'SYNC ACTIVE', pulse: 'bg-emerald-500' },
+    degraded: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', text: 'SYNC DELAYED', pulse: 'bg-amber-500' },
+    offline: { color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30', text: 'OFFLINE MODE', pulse: 'bg-rose-500' },
   };
-  const status = statusConfig[connectionStatus];
+  const status = statusConfig[connectionStatus || 'online'];
 
   return (
-    <div className="min-h-screen bg-[#080a0e] text-white overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Top Navigation */}
-      <nav className="fixed w-full top-0 z-50 flex items-center justify-between h-16 px-4 md:px-6 bg-[#0c0e13]/90 backdrop-blur-xl border-b border-[#41ddc2]/10">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#41ddc2]/10 flex items-center justify-center border border-[#41ddc2]/30">
-            <span className="material-symbols-outlined text-[#41ddc2] text-lg">location_on</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-[#41ddc2] tracking-wider" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>ResQMap</h1>
-            <div className="text-[9px] text-gray-500 uppercase tracking-widest font-mono">Command Center</div>
-          </div>
-        </div>
-
-        {/* Center Badges */}
-        <div className="hidden md:flex items-center gap-3">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold font-mono ${criticals > 0 ? 'bg-red-900/20 border-red-500/40 text-red-400 animate-pulse' : 'bg-gray-900/20 border-gray-700 text-gray-500'}`}>
-            <span className="material-symbols-outlined text-sm">error</span>
-            {criticals} ACTIVE CRITICALS
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${status.bg} ${status.color} text-xs font-bold font-mono`}>
-            <span className="material-symbols-outlined text-sm">{status.icon}</span>
-            {status.text}
-          </div>
-        </div>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative hidden lg:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">search</span>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search assets, units..."
-              className="bg-[#111318] border border-white/10 rounded-full px-9 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#41ddc2]/40 w-56 transition"
-            />
-            {searchResults.length > 0 && (
-              <div className="absolute top-full mt-2 left-0 right-0 bg-[#111318] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50">
-                {searchResults.map((r, i) => (
-                  <button key={i} onClick={() => { router.push(r._url); setSearch(''); setSearchResults([]); }} className="w-full text-left px-4 py-2.5 hover:bg-[#41ddc2]/10 flex items-center gap-3 border-b border-white/5 last:border-0">
-                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${r._cat === 'INCIDENT' ? 'bg-red-900/30 text-red-400' : r._cat === 'SURVIVOR' ? 'bg-[#41ddc2]/10 text-[#41ddc2]' : 'bg-orange-900/30 text-orange-400'}`}>{r._cat}</span>
-                    <span className="text-sm text-white truncate">{r.name || r.type || r.qrCode}</span>
-                  </button>
-                ))}
+    <div className="min-h-screen bg-[#06080c] text-slate-200 selection:bg-rose-500/30">
+      
+      {/* Upper Command Header */}
+      <header className="fixed top-0 w-full h-16 bg-[#0a0c12]/80 backdrop-blur-xl border-b border-white/5 z-[100] px-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+           <button 
+             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+             className="p-2 hover:bg-white/5 rounded-lg transition-colors md:hidden"
+           >
+             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+           </button>
+           
+           <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-900/20 group-hover:scale-105 transition-transform">
+                 <Shield className="w-5 h-5 text-white fill-current" />
               </div>
-            )}
-          </div>
+              <div className="hidden sm:block">
+                 <h1 className="text-lg font-black tracking-tighter text-white uppercase italic">ResQMap</h1>
+                 <div className="text-[9px] font-bold text-rose-500/70 uppercase tracking-[0.2em] -mt-1 font-mono">Operations Command</div>
+              </div>
+           </Link>
+        </div>
 
-          {/* Notifications */}
-          <div className="relative" ref={notifRef}>
-            <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 text-gray-400 hover:text-[#41ddc2] transition">
-              <span className="material-symbols-outlined">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">{unreadCount}</span>
-              )}
-            </button>
-            {showNotifs && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-[#111318] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50">
-                <div className="flex justify-between items-center p-3 border-b border-white/5">
-                  <span className="text-xs font-bold font-mono text-white">NOTIFICATIONS</span>
-                  <button onClick={markAllRead} className="text-[10px] text-[#41ddc2] hover:underline font-mono">MARK ALL READ</button>
-                </div>
-                {notifications.map(n => (
-                  <div key={n.id} className={`p-3 border-b border-white/5 flex gap-3 ${!n.read ? 'bg-[#41ddc2]/5' : ''}`}>
-                    <span className={`material-symbols-outlined text-[18px] mt-0.5 ${n.type === 'incident' ? 'text-red-400' : n.type === 'drone' ? 'text-orange-400' : 'text-[#41ddc2]'}`}>
-                      {n.type === 'incident' ? 'warning' : n.type === 'drone' ? 'flight' : 'inventory'}
-                    </span>
-                    <div>
-                      <p className="text-xs text-white">{n.message}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">{formatDistanceToNow(n.timestamp, { addSuffix: true })}</p>
-                    </div>
-                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-[#41ddc2] mt-1 shrink-0" />}
+        {/* Tactical Search (Fix 2) */}
+        <div className="hidden md:block flex-1 max-w-xl mx-8">
+           <DisasterSearch />
+        </div>
+
+        <div className="flex items-center gap-3">
+           {/* Status Hub */}
+           <div className={`hidden lg:flex items-center gap-3 px-3 py-1.5 rounded-full border ${status.bg} ${status.color} text-[10px] font-black font-mono tracking-widest`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${status.pulse} animate-pulse`} />
+              {status.text}
+           </div>
+
+           {/* Notification Center */}
+           <div className="relative" ref={notifRef}>
+              <button 
+                onClick={() => setShowNotifs(!showNotifs)}
+                className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-colors relative"
+              >
+                 <Bell className="w-5 h-5" />
+                 {unreadCount > 0 && (
+                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                 )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifs && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute right-0 mt-3 w-80 bg-gray-950/95 border border-gray-800 rounded-2xl shadow-3xl overflow-hidden backdrop-blur-2xl z-[150]"
+                  >
+                     <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-white/5">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Tactical Intel</span>
+                        <button onClick={markAllRead} className="text-[10px] font-bold text-rose-500 hover:text-rose-400">CLEAR ALL</button>
+                     </div>
+                     <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                        {notifications.length === 0 ? (
+                          <div className="p-12 text-center text-gray-500 text-xs font-bold uppercase tracking-widest opacity-30">No active intel</div>
+                        ) : (
+                          notifications.map((n) => (
+                            <div key={n.id} className={`p-4 border-b border-gray-900 group hover:bg-white/5 transition-colors ${!n.read ? 'bg-rose-500/5' : ''}`}>
+                               <div className="flex justify-between items-start mb-1">
+                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                    n.urgency === 'critical' ? 'bg-rose-500 text-white' : 'bg-gray-800 text-gray-300'
+                                  }`}>
+                                    {n.type?.toUpperCase() || 'INFO'}
+                                  </span>
+                                  <span className="text-[9px] font-medium text-gray-600 font-mono italic">
+                                     {formatDistanceToNow(n.timestamp)} ago
+                                  </span>
+                               </div>
+                               <p className="text-xs font-bold text-white group-hover:text-rose-400 transition-colors leading-relaxed">{n.message}</p>
+                            </div>
+                          ))
+                        )}
+                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+           </div>
+
+           {/* User Control */}
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full border-2 border-white/5 p-0.5 bg-gradient-to-tr from-gray-800 to-gray-700 pointer-events-none">
+                 <img src={user?.photoURL || '/avatar.png'} alt="" className="w-full h-full rounded-full object-cover" />
+              </div>
+           </div>
+        </div>
+      </header>
+
+      {/* Main Framework */}
+      <div className="pt-16 flex h-screen overflow-hidden">
+         
+         {/* Sidebar Navigation (Fix 8) */}
+         <aside className={`fixed md:relative md:flex h-full w-72 bg-[#080a0e] border-r border-white/5 flex-col z-[90] transition-transform duration-300 ease-in-out ${
+           isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+         }`}>
+            <div className="p-6 flex-1 space-y-8 overflow-y-auto">
+               
+               <div className="space-y-2">
+                  <h4 className="px-3 text-[9px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Tactical Grid</h4>
+                  <nav className="space-y-1">
+                     {navItems.map((item) => (
+                       <Link 
+                         key={item.path}
+                         href={item.path}
+                         onClick={() => setIsSidebarOpen(false)}
+                         className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all relative overflow-hidden group ${
+                           pathname === item.path ? 'bg-rose-600 text-white shadow-xl shadow-rose-900/20' : 'text-gray-500 hover:bg-white/5 hover:text-white'
+                         }`}
+                       >
+                          {item.icon}
+                          <span>{item.label}</span>
+                          {pathname === item.path && (
+                            <motion.div layoutId="nav-glow" className="absolute left-0 w-1.5 h-6 bg-white rounded-r-full" />
+                          )}
+                       </Link>
+                     ))}
+                  </nav>
+               </div>
+
+               {/* Map Caching Control (Fix 6 Interface) */}
+               <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-3">
+                     <div className="p-1.5 bg-rose-500/20 rounded-lg text-rose-500"><Download className="w-4 h-4"/></div>
+                     <span className="text-xs font-black uppercase tracking-widest text-white">Offline Access</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <button 
+                    onClick={() => { (window as any).downloadIndiaRegion?.(); }}
+                    className="w-full py-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-widest transition-all"
+                  >
+                     Cache India Map Data
+                  </button>
+                  <p className="text-[8px] text-gray-600 mt-2 text-center uppercase font-bold">~50MB Regional Index</p>
+               </div>
 
-          {/* User Avatar */}
-          <div className="w-9 h-9 rounded-full bg-[#41ddc2]/10 border border-[#41ddc2]/30 flex items-center justify-center cursor-pointer hover:bg-[#41ddc2]/20 transition" title="Operator Profile">
-            <span className="material-symbols-outlined text-[#41ddc2] text-lg">shield_person</span>
-          </div>
-        </div>
-      </nav>
+            </div>
 
-      {/* Side Navigation */}
-      <aside className="fixed left-0 top-16 h-[calc(100vh-64px)] w-16 md:w-20 bg-[#0c0e13]/90 backdrop-blur flex flex-col items-center py-6 gap-6 border-r border-white/5 z-40">
-        {navItems.map((item) => {
-          const isActive = pathname === item.path || pathname?.startsWith(`${item.path}/`);
-          return (
-            <Link key={item.path} href={item.path} title={item.label} className="group relative">
-              <div className={`p-3 rounded-xl transition-all ${isActive ? 'bg-[#41ddc2]/15 text-[#41ddc2] border border-[#41ddc2]/30' : 'text-gray-500 hover:text-[#41ddc2] hover:bg-[#41ddc2]/5'}`}>
-                <span className="material-symbols-outlined text-xl">{item.icon}</span>
-              </div>
-              {isActive && <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#41ddc2] rounded-l-full" />}
-              <div className="absolute left-14 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#111318] border border-white/10 text-white text-xs whitespace-nowrap rounded font-mono opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                {item.label}
-              </div>
-            </Link>
-          );
-        })}
-      </aside>
+            {/* Logout Footer */}
+            <div className="p-6 border-t border-white/5">
+               <button 
+                 onClick={logout}
+                 className="flex items-center gap-3 px-4 py-3 w-full bg-gray-950 hover:bg-rose-950/20 hover:text-rose-400 border border-white/5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-gray-500 group"
+               >
+                  <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  Operator Sign-out
+               </button>
+            </div>
+         </aside>
 
-      {/* Main Content */}
-      <main className="ml-16 md:ml-20 mt-16 h-[calc(100vh-96px)] overflow-y-auto overflow-x-hidden relative no-scrollbar">
-        {children}
-      </main>
+         {/* Content Engine */}
+         <main className="flex-1 relative h-full overflow-hidden">
+            <AnimatePresence mode="wait">
+               <motion.div
+                 key={pathname}
+                 initial={{ opacity: 0, y: 5 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 exit={{ opacity: 0, y: -5 }}
+                 className="h-full w-full"
+               >
+                  {children}
+               </motion.div>
+            </AnimatePresence>
+         </main>
+      </div>
 
-      {/* Footer Status Bar */}
-      <footer className="fixed bottom-0 left-0 w-full h-8 bg-[#0c0e13]/95 border-t border-white/5 flex items-center justify-between px-4 md:px-6 text-[10px] text-gray-500 z-50 font-mono tracking-wider">
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center gap-1 ${connectionStatus === 'online' ? 'text-[#41ddc2]' : connectionStatus === 'degraded' ? 'text-orange-400' : 'text-red-400'}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            <span className="font-bold">{connectionStatus === 'online' ? 'DATA SYNC: LIVE' : connectionStatus === 'degraded' ? 'DATA SYNC: PENDING' : 'DATA SYNC: OFFLINE'}</span>
-          </div>
-          <span className="hidden sm:inline">UPTIME: {uptime || '0h 0m'}</span>
-        </div>
-        <div className="hidden md:flex items-center gap-6">
-          <span>LAT: {mousePos.lat.toFixed(4)}° N | LNG: {mousePos.lng.toFixed(4)}° W</span>
-          <span>GRID: ALPHA-7</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>ENCRYPTION: AES-256</span>
-          <span className="text-[#41ddc2]">v2.1.0</span>
-        </div>
-      </footer>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 99px; }
+      `}</style>
     </div>
   );
 };
+
+import { Download } from 'lucide-react';

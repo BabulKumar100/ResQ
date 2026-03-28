@@ -1,228 +1,211 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TacticalLayout } from '@/components/ui/TacticalLayout';
 import dynamic from 'next/dynamic';
-import { Loader2 } from 'lucide-react';
-import { useRealtimeIncidents, useRealtimeRescuers } from '@/lib/useRealtime';
+import { Loader2, Navigation2, ShieldAlert, Globe, Compass, Layers } from 'lucide-react';
 import { useMapStore } from '@/store/mapStore';
-import { formatDistanceToNow } from 'date-fns';
+import { useIncidentStore } from '@/store/incidentStore';
+import { useDroneStore } from '@/store/droneStore';
+import { DisasterFilterPanel } from '@/components/map/DisasterFilterPanel';
+import { RouteSelectionPanel } from '@/components/map/RouteSelectionPanel';
+import { BottomSheet, BottomSheetContent, BottomSheetHeader, BottomSheetTitle, BottomSheetTrigger } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const TacticalMap = dynamic(() => import('@/components/map/TacticalMap'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full bg-[#070d1a] flex flex-col items-center justify-center gap-3 text-[#41ddc2]/50">
-      <Loader2 className="animate-spin w-8 h-8" />
-      <span className="text-xs font-mono tracking-widest animate-pulse">INITIALIZING TACTICAL MAP...</span>
+    <div className="w-full h-full bg-[#06080c] flex flex-col items-center justify-center gap-4 text-rose-500/50">
+      <div className="relative">
+         <Loader2 className="animate-spin w-12 h-12 text-rose-600" />
+         <div className="absolute inset-0 bg-rose-500/10 blur-xl animate-pulse" />
+      </div>
+      <div className="flex flex-col items-center">
+         <span className="text-[10px] font-black tracking-[0.3em] font-mono animate-pulse uppercase">Initializing Tactical Index</span>
+         <span className="text-[8px] font-bold text-gray-600 uppercase mt-1">Connecting to NDMA Sentinel Cluster...</span>
+      </div>
     </div>
   ),
 });
 
 export default function EmergencyMapPage() {
-  const { incidents } = useRealtimeIncidents();
-  const { rescuers } = useRealtimeRescuers();
-  const { overlays, toggleOverlay, flyToTarget, setFlyToTarget, setMouseLatLng, mouseLatLng } = useMapStore();
-  const [selectedIncident, setSelectedIncident] = useState<any>(null);
-  const [toast, setToast] = useState('');
-  const [dispatchLoading, setDispatchLoading] = useState(false);
+  const { incidents, activeIncidentId, setActiveIncidentId } = useIncidentStore();
+  const { drones } = useDroneStore();
+  const { setFlyToTarget, mouseLatLng, overlays, toggleOverlay } = useMapStore();
+  const [showRoutePanel, setShowRoutePanel] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-  const criticalIncidents = incidents.filter(i => i.severity === 'critical');
-  const activeIncident = selectedIncident || criticalIncidents[0] || incidents[0] || null;
-
-  const markers = [
-    ...incidents.map(i => ({
-      position: [i.lat || 34.0522, i.lng || -118.2437] as [number, number],
-      title: (i.title || i.type || 'Unknown').toUpperCase(),
-      type: 'emergency' as const,
-      description: i.description || i.address || '',
-      severity: i.severity,
-      id: i.id,
-    })),
-    ...rescuers.map(r => ({
-      position: [r.lat || 34.0, r.lng || -118.2] as [number, number],
-      title: r.name,
-      type: 'resource' as const,
-      description: `${r.agency} · ${r.status?.toUpperCase()} · 🔋${r.fuelPct}%`,
-      severity: undefined,
-      id: r.id,
-    })),
-  ];
-
-  const handleDispatch = async () => {
-    if (!activeIncident) return;
-    setDispatchLoading(true);
-    await fetch('/api/db/incidents', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...activeIncident, status: 'dispatched' })
-    });
-    await fetch('/api/db/live_events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DISPATCH', message: `Units dispatched to ${activeIncident.type} @ ${activeIncident.address}`, severity: 'info', locationName: activeIncident.address })
-    });
-    showToast(`🚁 Units dispatched to ${activeIncident.type?.toUpperCase()}`);
-    setDispatchLoading(false);
-  };
-
-  const handleEvacuate = async () => {
-    if (!activeIncident) return;
-    await fetch('/api/db/incidents', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...activeIncident, evacuationOrdered: true })
-    });
-    showToast(`🚨 EVACUATION ORDER issued for ${activeIncident.address}`);
-  };
-
-  const overlayConfig = [
-    { key: 'thermal' as const, label: 'THERMAL IMAGING', icon: 'thermostat', color: 'text-red-400', desc: 'Active heat signatures detector' },
-    { key: 'structural' as const, label: 'STRUCTURAL DAMAGE', icon: 'domain_disabled', color: 'text-orange-400', desc: 'Building integrity zones' },
-    { key: 'population' as const, label: 'POPULATION DENSITY', icon: 'groups', color: 'text-[#41ddc2]', desc: 'Cellular heatmap aggregation' },
-    { key: 'hazard' as const, label: 'BIOLOGICAL HAZARDS', icon: 'coronavirus', color: 'text-green-400', desc: 'Toxin & radiation spread zones' },
-  ];
+  const activeIncident = incidents.find(i => i.id === activeIncidentId);
 
   return (
     <TacticalLayout>
-      {toast && (
-        <div className="fixed top-4 right-4 z-[9999] bg-[#111318] border border-[#41ddc2]/50 text-white text-xs font-mono px-4 py-3 rounded-xl shadow-xl">{toast}</div>
-      )}
+      <div className="relative w-full h-full overflow-hidden bg-[#06080c]">
+        
+        {/* The Map Engine */}
+        <div className="absolute inset-0 z-0">
+          <TacticalMap />
+        </div>
 
-      <div className="absolute inset-0">
-        <TacticalMap
-          center={[34.0522, -118.2437]}
-          zoom={13}
-          markers={markers}
-          activeOverlays={overlays}
-          onMouseMove={(lat, lng) => setMouseLatLng({ lat, lng })}
-          onMarkerClick={(m) => {
-            const inc = incidents.find(i => i.type?.toUpperCase() === m.title || i.id === m.id);
-            if (inc) setSelectedIncident(inc);
-          }}
-          flyTo={flyToTarget}
-        />
-      </div>
+        {/* Global Tactical Overlays (Desktop) */}
+        {!isMobile && (
+          <>
+            <DisasterFilterPanel />
+            {showRoutePanel && <RouteSelectionPanel />}
+            
+            {/* Legend / Status Overlay */}
+            <div className="absolute bottom-12 left-6 pointer-events-none z-10 transition-all">
+               <motion.div 
+                 initial={{ opacity: 0, x: -20 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 className="p-5 bg-gray-950/90 border border-gray-800 rounded-[2rem] backdrop-blur-xl shadow-3xl flex flex-col gap-3 min-w-[200px]"
+               >
+                  <div className="flex items-center gap-3">
+                     <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500"><Compass className="w-4 h-4"/></div>
+                     <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Region Ready</span>
+                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest font-mono">India Sector Alpha</span>
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                     <div className="bg-white/5 p-2 rounded-xl flex flex-col">
+                        <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mb-1">Grid LAT</span>
+                        <span className="text-[10px] font-mono font-black text-white">{mouseLatLng?.lat?.toFixed(4) || '20.5937'}°N</span>
+                     </div>
+                     <div className="bg-white/5 p-2 rounded-xl flex flex-col">
+                        <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mb-1">Grid LNG</span>
+                        <span className="text-[10px] font-mono font-black text-white">{mouseLatLng?.lng?.toFixed(4) || '78.9629'}°E</span>
+                     </div>
+                  </div>
+               </motion.div>
+            </div>
 
-      {/* Top Stats */}
-      <div className="absolute top-4 left-4 flex gap-3 z-10 pointer-events-none">
-        <div className="bg-[#111318]/90 backdrop-blur px-4 py-3 rounded-xl border border-[#41ddc2]/20 flex items-center gap-3">
-          <span className="material-symbols-outlined text-[#41ddc2]">person_play</span>
-          <div>
-            <div className="text-xl font-bold font-mono text-[#41ddc2]">{rescuers.length}</div>
-            <div className="text-[10px] text-gray-500 tracking-wider">ACTIVE RESPONDERS</div>
+            {/* Tactical Actions (Floating Right) */}
+            <div className="absolute top-24 right-6 flex flex-col gap-3 z-10">
+               <Button 
+                 onClick={() => setShowRoutePanel(!showRoutePanel)}
+                 className={`h-14 w-14 rounded-2xl shadow-2xl transition-all ${
+                   showRoutePanel ? 'bg-rose-600 text-white scale-110' : 'bg-gray-950/90 border border-gray-800 text-rose-500 hover:bg-rose-500/10'
+                 }`}
+               >
+                  <Navigation2 className="w-6 h-6" />
+               </Button>
+               <Button 
+                  className="h-14 w-14 rounded-2xl bg-gray-950/90 border border-gray-800 text-amber-500 shadow-2xl hover:bg-amber-500/10 transition-all"
+                  onClick={() => toggleOverlay('evacuationRoutes')}
+               >
+                  <ShieldAlert className="w-6 h-6" />
+               </Button>
+            </div>
+          </>
+        )}
+
+        {/* Mobile-Only Dashboard (Fix 8) */}
+        {isMobile && (
+          <div className="absolute bottom-6 left-0 right-0 px-6 flex items-center justify-center gap-3 z-50">
+             <BottomSheet>
+                <BottomSheetTrigger asChild>
+                   <Button className="flex-1 h-14 bg-gray-950/90 border border-gray-800 rounded-2xl backdrop-blur-xl text-xs font-black uppercase tracking-widest text-white gap-2 shadow-2xl">
+                      <Layers className="w-4 h-4 text-emerald-500" />
+                      Tactical Overlays
+                   </Button>
+                </BottomSheetTrigger>
+                <BottomSheetContent>
+                   <BottomSheetHeader>
+                      <BottomSheetTitle className="text-xl font-black uppercase tracking-widest text-white italic">Overlay Hub</BottomSheetTitle>
+                   </BottomSheetHeader>
+                   <div className="pb-8">
+                      <DisasterFilterPanel />
+                   </div>
+                </BottomSheetContent>
+             </BottomSheet>
+             
+             <BottomSheet>
+                <BottomSheetTrigger asChild>
+                   <Button className="w-14 h-14 bg-rose-600 rounded-2xl shadow-xl shadow-rose-900/40 text-white">
+                      <Navigation2 className="w-6 h-6" />
+                   </Button>
+                </BottomSheetTrigger>
+                <BottomSheetContent>
+                    <BottomSheetHeader>
+                      <BottomSheetTitle className="text-xl font-black uppercase tracking-widest text-white italic">Strategic Routing</BottomSheetTitle>
+                   </BottomSheetHeader>
+                   <div className="pb-8">
+                      <RouteSelectionPanel />
+                   </div>
+                </BottomSheetContent>
+             </BottomSheet>
           </div>
-        </div>
-        <div className={`bg-[#111318]/90 backdrop-blur px-4 py-3 rounded-xl border flex items-center gap-3 ${criticalIncidents.length > 0 ? 'border-red-500/40 animate-pulse' : 'border-white/10'}`}>
-          <span className="material-symbols-outlined text-red-400">warning</span>
-          <div>
-            <div className="text-xl font-bold font-mono text-red-400">{criticalIncidents.length}</div>
-            <div className="text-[10px] text-gray-500 tracking-wider">CRITICAL ALERTS</div>
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* SAT-LINK Badge */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className="bg-[#111318]/90 backdrop-blur px-4 py-2 rounded-full border border-[#41ddc2]/20 flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#41ddc2] animate-pulse" />
-            <span className="text-xs font-mono text-[#41ddc2]">SAT-LINK ACTIVE</span>
-          </div>
-          <div className="w-px h-4 bg-white/10" />
-          <span className="text-xs font-mono text-gray-500">UPTIME: 99.9%</span>
-        </div>
-      </div>
-
-      {/* Tactical Overlays Panel */}
-      <div className="absolute left-4 top-32 w-64 bg-[#111318]/95 backdrop-blur rounded-xl border border-white/10 overflow-hidden z-10 pointer-events-auto">
-        <div className="p-3 border-b border-white/5 flex items-center gap-2">
-          <span className="material-symbols-outlined text-[#41ddc2] text-lg">layers</span>
-          <h2 className="font-bold text-[#41ddc2] text-sm tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>TACTICAL OVERLAYS</h2>
-        </div>
-        <div className="p-3 space-y-2">
-          {overlayConfig.map(layer => (
-            <button
-              key={layer.key}
-              onClick={() => toggleOverlay(layer.key)}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition ${overlays[layer.key] ? 'bg-[#41ddc2]/10 border-[#41ddc2]/30' : 'border-white/5 hover:border-white/10 hover:bg-white/5'}`}
+        {/* Incident Detail Card (Desktop Overlay) */}
+        <AnimatePresence>
+          {activeIncident && !isMobile && (
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.9, x: 20 }}
+               animate={{ opacity: 1, scale: 1, x: 0 }}
+               exit={{ opacity: 0, scale: 0.9, x: 20 }}
+               className="absolute right-6 top-44 w-80 bg-gray-950/95 border border-gray-800 rounded-[2.5rem] shadow-3xl backdrop-blur-2xl z-20 overflow-hidden"
             >
-              <span className={`material-symbols-outlined ${overlays[layer.key] ? layer.color : 'text-gray-600'}`}>{layer.icon}</span>
-              <div className="text-left flex-1">
-                <div className={`text-xs font-mono font-bold ${overlays[layer.key] ? layer.color : 'text-gray-400'}`}>{layer.label}</div>
-                <div className="text-[9px] text-gray-600 mt-0.5">{layer.desc}</div>
-              </div>
-              <div className={`w-8 h-4 rounded-full transition-colors ${overlays[layer.key] ? 'bg-[#41ddc2]' : 'bg-gray-700'}`}>
-                <div className={`w-3 h-3 m-0.5 bg-white rounded-full transition-transform ${overlays[layer.key] ? 'translate-x-4' : 'translate-x-0'}`} />
-              </div>
-            </button>
-          ))}
-        </div>
-        {/* Incidents quick list */}
-        <div className="border-t border-white/5 p-3">
-          <div className="text-[10px] font-mono text-gray-500 mb-2">LIVE INCIDENTS ({incidents.length})</div>
-          <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
-            {incidents.map(inc => (
-              <button key={inc.id} onClick={() => { setSelectedIncident(inc); setFlyToTarget([inc.lat || 34.0522, inc.lng || -118.2437]); }}
-                className="w-full flex items-center gap-2 p-2 rounded text-left hover:bg-white/5 transition">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${inc.severity === 'critical' ? 'bg-red-500 animate-pulse' : inc.severity === 'high' ? 'bg-orange-400' : 'bg-yellow-400'}`} />
-                <span className="text-xs text-gray-300 truncate">{(inc.title || inc.type || 'Unknown').toUpperCase()}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+               <div className="p-1">
+                  <div className="relative w-full h-32 rounded-[2rem] overflow-hidden bg-gray-900">
+                     <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent z-10" />
+                     <img src="https://images.unsplash.com/photo-1547683905-f686c993aae5?q=80&w=400" className="w-full h-full object-cover opacity-50 grayscale hover:grayscale-0 transition-all duration-500" />
+                     <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Overwatch Alpha</span>
+                     </div>
+                  </div>
+               </div>
+               <div className="p-6 pt-2">
+                  <div className="flex justify-between items-start mb-4">
+                     <div>
+                        <h3 className="text-xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">{activeIncident.type}</h3>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{activeIncident.address}</p>
+                     </div>
+                     <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                       activeIncident.severity === 'critical' ? 'bg-rose-600 text-white' : 'bg-amber-600 text-white'
+                     }`}>
+                        {activeIncident.severity}
+                     </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                     <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                        <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Status</span>
+                        <span className="text-xs font-black text-rose-500 uppercase">{activeIncident.status}</span>
+                     </div>
+                     <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                        <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest block mb-1">Units</span>
+                        <span className="text-xs font-black text-emerald-500 uppercase">{activeIncident.unitsAssigned || 0} Deployed</span>
+                     </div>
+                  </div>
 
-      {/* Right Incident Detail Panel */}
-      {activeIncident && (
-        <div className="absolute right-4 top-20 w-76 max-w-xs bg-[#111318]/95 backdrop-blur rounded-xl border border-red-500/30 overflow-hidden z-10 pointer-events-auto">
-          <div className={`p-4 border-b flex justify-between items-center ${activeIncident.severity === 'critical' ? 'border-red-500/20 bg-red-900/10' : 'border-white/10'}`}>
-            <div className="flex items-center gap-2">
-              <span className={`material-symbols-outlined text-sm ${activeIncident.severity === 'critical' ? 'text-red-400 animate-pulse' : 'text-[#41ddc2]'}`}>adjust</span>
-              <span className={`text-xs font-mono font-bold ${activeIncident.severity === 'critical' ? 'text-red-400' : 'text-[#41ddc2]'}`}>
-                INCIDENT {activeIncident.incidentCode || activeIncident.id?.substring(0, 4).toUpperCase()}
-              </span>
-            </div>
-            <button onClick={() => setSelectedIncident(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
-          </div>
-          <div className="p-4 space-y-4">
-            <div>
-              <div className="text-base font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{(activeIncident.title || activeIncident.type || '').toUpperCase()}</div>
-              <div className="text-xs text-gray-400 mt-1">{activeIncident.description || activeIncident.address}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-[#0c0e13] p-3 rounded border border-white/5">
-                <div className="text-[10px] text-gray-500 font-mono mb-1">THREAT LEVEL</div>
-                <div className={`font-bold text-sm ${activeIncident.severity === 'critical' ? 'text-red-400' : 'text-orange-400'}`}>{activeIncident.severity?.toUpperCase()} ZONE</div>
-              </div>
-              <div className="bg-[#0c0e13] p-3 rounded border border-white/5">
-                <div className="text-[10px] text-gray-500 font-mono mb-1">SOURCE</div>
-                <div className="text-[#41ddc2] font-bold text-sm">{activeIncident.source || 'MANUAL'}</div>
-              </div>
-            </div>
-            <div className="text-[10px] text-gray-500 font-mono">
-              📍 {activeIncident.address || `${activeIncident.lat?.toFixed(4)}, ${activeIncident.lng?.toFixed(4)}`}
-            </div>
-            {/* Live feed preview */}
-            <div className="w-full h-28 bg-[#0c0e13] rounded border border-white/5 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-30 bg-[url('https://images.unsplash.com/photo-1615631221590-7d7211110091?q=80&w=400')] bg-cover mix-blend-luminosity" />
-              <div className="absolute top-2 left-2 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-red-500" />
-                <span className="text-[8px] font-mono text-red-400 font-bold">LIVE OVERWATCH</span>
-              </div>
-              <span className="material-symbols-outlined text-3xl text-white/30">visibility</span>
-            </div>
-          </div>
-          <div className="p-3 border-t border-white/5 grid grid-cols-3 gap-2">
-            <button onClick={handleDispatch} disabled={dispatchLoading} className="py-2 text-[10px] font-bold text-[#080a0e] bg-[#41ddc2] rounded hover:bg-white transition disabled:opacity-50">
-              {dispatchLoading ? '...' : 'DISPATCH'}
-            </button>
-            <button onClick={handleEvacuate} className="py-2 text-[10px] font-bold text-white bg-red-500 rounded hover:bg-red-400 transition">EVACUATE</button>
-            <button onClick={() => setFlyToTarget([activeIncident.lat, activeIncident.lng])} className="py-2 text-[10px] font-bold text-gray-400 rounded hover:bg-white/5 border border-white/10 transition">FLY TO</button>
-          </div>
-        </div>
-      )}
+                  <div className="flex flex-col gap-2">
+                     <Button className="w-full h-11 bg-rose-600 hover:bg-rose-700 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-rose-900/20">
+                        Dispatch Extra Units
+                     </Button>
+                     <Button 
+                       variant="ghost" 
+                       className="w-full h-11 border border-white/5 hover:bg-white/5 rounded-xl font-black uppercase tracking-widest text-[10px] text-gray-400"
+                       onClick={() => setActiveIncidentId(null)}
+                     >
+                        Close Tactical Detail
+                     </Button>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </div>
     </TacticalLayout>
   );
 }

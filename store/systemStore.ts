@@ -2,10 +2,12 @@ import { create } from 'zustand';
 
 export interface Notification {
   id: string;
-  type: 'incident' | 'sos' | 'drone' | 'resupply' | 'system';
+  type: 'incident' | 'sos' | 'drone' | 'resupply' | 'system' | 'SOS';
+  title?: string;
   message: string;
-  timestamp: Date;
+  timestamp: number | Date;
   read: boolean;
+  urgency?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 interface SystemStore {
@@ -15,7 +17,7 @@ interface SystemStore {
   unreadCount: number;
   setConnectionStatus: (s: 'online' | 'degraded' | 'offline') => void;
   setUptime: (u: string) => void;
-  addNotification: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  addNotification: (n: Partial<Notification>) => void;
   markAllRead: () => void;
 }
 
@@ -33,9 +35,16 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setUptime: (uptime) => set({ uptime }),
   addNotification: (n) => {
-    const notif: Notification = { ...n, id: Math.random().toString(36).substring(2), timestamp: new Date(), read: false };
+    const notif: Notification = { 
+      id: Math.random().toString(36).substring(2), 
+      timestamp: Date.now(), 
+      read: false,
+      type: 'system',
+      message: '',
+      ...n 
+    } as Notification;
     set(state => ({
-      notifications: [notif, ...state.notifications].slice(0, 10),
+      notifications: [notif, ...state.notifications].slice(0, 50),
       unreadCount: state.unreadCount + 1
     }));
   },

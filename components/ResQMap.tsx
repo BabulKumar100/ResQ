@@ -1,11 +1,11 @@
 'use client'
 
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import { LatLngExpression } from 'leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useGeolocation } from '@/hooks/useGeolocation'
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 
 let defaultIcon: any;
 let emergencyIcon: any;
@@ -45,6 +45,17 @@ interface MapProps {
     title: string
     severity: 'low' | 'medium' | 'high'
   }[]
+  flyTo?: LatLngExpression | null
+}
+
+function MapController({ flyTo }: { flyTo?: LatLngExpression | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (flyTo) {
+      map.flyTo(flyTo, 15, { duration: 1.5 })
+    }
+  }, [flyTo, map])
+  return null
 }
 
 function ResQMapContent({
@@ -52,6 +63,7 @@ function ResQMapContent({
   zoom = 13,
   markers = [],
   disasters = [],
+  flyTo = null,
 }: MapProps) {
   const { location } = useGeolocation()
 
@@ -70,6 +82,7 @@ function ResQMapContent({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+      <MapController flyTo={flyTo} />
 
       {/* User location */}
       {location && (

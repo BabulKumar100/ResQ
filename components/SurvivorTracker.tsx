@@ -211,15 +211,15 @@ Last Updated: ${survivor.foundAt || 'Ongoing search'}
       // Mock Google import with sample missing persons data
       const mockGoogleData = [
         {
-          name: 'Sarah Johnson',
+          name: 'Pawan Singh',
           age: 28,
-          lastLocation: 'City Hospital',
+          lastLocation: 'SIR SUNDARLAL CHIKITSHALAY',
           contactInfo: '555-0102',
           description: 'Last seen near emergency exit, wearing white shirt',
           injuries: 'Unknown'
         },
         {
-          name: 'Michael Chen',
+          name: 'Sakshi Singh',
           age: 45,
           lastLocation: 'Shopping District',
           contactInfo: '555-0103',
@@ -227,7 +227,7 @@ Last Updated: ${survivor.foundAt || 'Ongoing search'}
           injuries: 'Possibly injured'
         },
         {
-          name: 'Emma Wilson',
+          name: 'Sanjeev Kumar Patel',
           age: 32,
           lastLocation: 'Downtown Station',
           contactInfo: '555-0104',
@@ -401,7 +401,7 @@ Last Updated: ${survivor.foundAt || 'Ongoing search'}
           ))}
         </div>
       </div>
-
+    
       {/* Detail Panel */}
       {selectedSurvivor && (
         <div className="flex-1 bg-gray-800 rounded-lg p-4 flex flex-col">

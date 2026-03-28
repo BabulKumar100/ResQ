@@ -1,195 +1,155 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { MapContainer, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useMapStore } from '@/store/mapStore';
+import { IndiaAdministrativeLayers } from './IndiaAdministrativeLayers';
+import { NDMADisasterMarkers } from './NDMADisasterMarkers';
+import { EvacuationRoutesLayer } from './EvacuationRoutesLayer';
+import { setupTileCaching } from '@/lib/tile-cache';
+import { calculateSafeRoute } from '@/lib/routing-utils';
 
-interface Marker {
-  position: [number, number];
-  title: string;
-  type: 'emergency' | 'resource' | 'default' | 'drone';
-  description?: string;
-  severity?: string;
-  id?: string;
-}
+// Helper component to handle map events and store updates
+function MapEventsHandler() {
+  const { setMouseLatLng, setFlyToTarget, flyToTarget, center, zoom, routeOrigin, routeDestination, setActiveRoutes, dangerZones } = useMapStore();
+  const map = useMap();
 
-interface TacticalMapProps {
-  center: [number, number];
-  zoom?: number;
-  markers?: Marker[];
-  activeOverlays?: { thermal: boolean; structural: boolean; population: boolean; hazard: boolean };
-  onMouseMove?: (lat: number, lng: number) => void;
-  onMarkerClick?: (marker: Marker) => void;
-  flyTo?: [number, number] | null;
-}
-
-export default function TacticalMap({ center, zoom = 13, markers = [], activeOverlays, onMouseMove, onMarkerClick, flyTo }: TacticalMapProps) {
-  const mapRef = useRef<any>(null);
-  const heatLayerRef = useRef<any>(null);
-  const hazardLayersRef = useRef<any[]>([]);
-  const [mapReady, setMapReady] = useState(false);
-
-  useEffect(() => {
-    if (mapRef.current) return;
-
-    import('leaflet').then(L => {
-      // Fix default icons
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconUrl: '/leaflet/marker-icon.png',
-        iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-        shadowUrl: '/leaflet/marker-shadow.png',
-      });
-
-      const container = document.getElementById('tactical-map-container');
-      if (!container || (container as any)._leaflet_id) return;
-
-      const map = L.map('tactical-map-container', {
-        center,
-        zoom,
-        zoomControl: false,
-        attributionControl: false,
-      });
-
-      // CartoDB Dark tiles — no API key needed
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd',
-      }).addTo(map);
-
-      // Zoom control bottom right
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-      // Mouse move for lat/lng readout
-      map.on('mousemove', (e: any) => {
-        if (onMouseMove) onMouseMove(e.latlng.lat, e.latlng.lng);
-      });
-
-      mapRef.current = map;
-      setMapReady(true);
-    });
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
-
-  // Add markers when data arrives
-  useEffect(() => {
-    if (!mapReady || !mapRef.current) return;
-    const L = require('leaflet');
-
-    // Clear existing non-tile layers (markers)
-    mapRef.current.eachLayer((layer: any) => {
-      if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
-        mapRef.current.removeLayer(layer);
-      }
-    });
-
-    markers.forEach((marker) => {
-      const isCritical = marker.severity === 'critical';
-      const isHigh = marker.severity === 'high';
-
-      let iconHtml = '';
-      if (marker.type === 'emergency') {
-        iconHtml = `
-          <div style="position:relative;width:28px;height:28px;">
-            <div style="
-              position:absolute;inset:0;border-radius:50%;
-              background:${isCritical ? '#ef4444' : isHigh ? '#f97316' : '#eab308'};
-              opacity:0.3;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;
-            "></div>
-            <div style="
-              position:absolute;inset:4px;border-radius:50%;
-              background:${isCritical ? '#ef4444' : isHigh ? '#f97316' : '#eab308'};
-              box-shadow:0 0 10px ${isCritical ? '#ef4444' : '#f97316'};
-            "></div>
-          </div>`;
-      } else if (marker.type === 'resource' || marker.type === 'drone') {
-        iconHtml = `<div style="width:16px;height:16px;border-radius:50%;background:#41ddc2;box-shadow:0 0 8px #41ddc2;border:2px solid rgba(65,221,194,0.4);"></div>`;
-      } else {
-        iconHtml = `<div style="width:14px;height:14px;border-radius:50%;background:#6366f1;box-shadow:0 0 6px #6366f1;"></div>`;
-      }
-
-      const icon = L.divIcon({
-        html: `<style>@keyframes ping{75%,100%{transform:scale(2);opacity:0}}</style>${iconHtml}`,
-        className: '',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      });
-
-      const m = L.marker(marker.position, { icon }).addTo(mapRef.current);
-
-      // Popup
-      const popupHtml = `
-        <div style="background:#111318;border:1px solid #41ddc2/30;border-radius:8px;padding:12px;min-width:180px;font-family:monospace;">
-          <div style="color:${isCritical ? '#ef4444' : '#41ddc2'};font-size:10px;font-weight:bold;letter-spacing:0.1em;margin-bottom:6px;">
-            ${marker.type.toUpperCase()} · ${marker.severity?.toUpperCase() || 'INFO'}
+  useMapEvents({
+    mousemove(e) {
+      setMouseLatLng({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+    contextmenu(e) {
+      // Right-click menu implementation
+       L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`
+          <div class="p-2 bg-gray-950 text-white rounded border border-gray-800 text-[10px] font-bold">
+            <button class="w-full text-left py-1.5 hover:text-blue-400 border-b border-gray-900" id="set-origin">SET AS ORIGIN</button>
+            <button class="w-full text-left py-1.5 hover:text-green-400" id="set-dest">SET AS DESTINATION</button>
           </div>
-          <div style="color:#ffffff;font-size:13px;font-weight:bold;margin-bottom:4px;">${marker.title}</div>
-          <div style="color:#9ca3af;font-size:11px;">${marker.description || ''}</div>
-        </div>`;
-      m.bindPopup(popupHtml, { className: 'tactical-popup' });
+        `)
+        .openOn(map);
+      
+      setTimeout(() => {
+        document.getElementById('set-origin')?.addEventListener('click', () => {
+          useMapStore.getState().setRoutePoints([e.latlng.lat, e.latlng.lng], routeDestination);
+          map.closePopup();
+        });
+        document.getElementById('set-dest')?.addEventListener('click', () => {
+          useMapStore.getState().setRoutePoints(routeOrigin, [e.latlng.lat, e.latlng.lng]);
+          map.closePopup();
+        });
+      }, 100);
+    }
+  });
 
-      m.on('click', () => { if (onMarkerClick) onMarkerClick(marker); });
-    });
-  }, [markers, mapReady]);
-
-  // Fly to target
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !flyTo) return;
-    mapRef.current.flyTo(flyTo, 16, { animate: true, duration: 1.5 });
-  }, [flyTo, mapReady]);
+    if (flyToTarget) {
+      map.flyTo(flyToTarget, 12, { animate: true, duration: 1.5 });
+      setFlyToTarget(null);
+    }
+  }, [flyToTarget, map, setFlyToTarget]);
 
-  // Overlays
+  // Handle Route Calculation when points change
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !activeOverlays) return;
-    const L = require('leaflet');
-
-    // Remove existing hazard circles
-    hazardLayersRef.current.forEach(l => mapRef.current.removeLayer(l));
-    hazardLayersRef.current = [];
-
-    if (activeOverlays.hazard) {
-      markers.filter(m => m.type === 'emergency').forEach(m => {
-        const circle = L.circle(m.position, {
-          radius: 500,
-          color: '#ef4444',
-          fillColor: '#ef4444',
-          fillOpacity: 0.08,
-          weight: 1,
-        }).addTo(mapRef.current);
-        hazardLayersRef.current.push(circle);
+    if (routeOrigin && routeDestination) {
+      calculateSafeRoute(routeOrigin, routeDestination, dangerZones).then(routes => {
+        setActiveRoutes(routes);
       });
     }
+  }, [routeOrigin, routeDestination, dangerZones, setActiveRoutes]);
 
-    if (activeOverlays.structural) {
-      const structCircle = L.circle([center[0] + 0.005, center[1] - 0.005], {
-        radius: 300,
-        color: '#f97316',
-        fillColor: '#f97316',
-        fillOpacity: 0.1,
-        weight: 1,
-        dashArray: '6 4',
-      }).addTo(mapRef.current);
-      hazardLayersRef.current.push(structCircle);
-    }
-  }, [activeOverlays, mapReady, markers]);
+  return null;
+}
+
+// Tile Layer with Caching Support
+function OfflineTileLayer() {
+  const map = useMap();
+  useEffect(() => {
+    setupTileCaching(map);
+  }, [map]);
+  return null;
+}
+
+export default function TacticalMap() {
+  const { center, zoom, activeRoutes } = useMapStore();
 
   return (
-    <>
+    <div className="w-full h-full relative bg-[#070d1a]">
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        zoomControl={false}
+        attributionControl={false}
+        className="w-full h-full z-0"
+      >
+        <OfflineTileLayer />
+        <ZoomControl position="bottomright" />
+        
+        <IndiaAdministrativeLayers />
+        <NDMADisasterMarkers />
+        <EvacuationRoutesLayer />
+        
+        {/* Render Active Routes */}
+        {activeRoutes.map((route, idx) => (
+          <RoutePolyline key={idx} route={route} />
+        ))}
+
+        <MapEventsHandler />
+      </MapContainer>
+
+      {/* Map UI Overlays */}
+      <div className="absolute bottom-12 left-6 z-[1000] pointer-events-none">
+         <div className="p-3 bg-gray-950/90 border border-gray-800 rounded-xl backdrop-blur shadow-2xl flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-gray-500 font-mono text-[9px] font-black uppercase tracking-widest">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Strategic India Overlay Active
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-[10px] font-bold text-white">
+               <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" /> FLOOD ZONE
+               </div>
+               <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-spin" /> CYCLONE TRACK
+               </div>
+               <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-600" /> EARTHQUAKE
+               </div>
+               <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" /> EVAC ROUTE
+               </div>
+            </div>
+         </div>
+      </div>
+
       <style>{`
-        .tactical-popup .leaflet-popup-content-wrapper {
-          background: transparent !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-          border: none !important;
-        }
-        .tactical-popup .leaflet-popup-tip-container { display: none; }
-        .leaflet-container { background: #070d1a !important; }
+        .leaflet-container { background: #070d1a !important; cursor: crosshair !important; }
+        .disaster-popup .leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; padding:0; border:none; }
+        .disaster-popup .leaflet-popup-tip-container { display: none; }
+        .ndma-marker { border:none !important; background:none !important; }
       `}</style>
-      <div id="tactical-map-container" className="w-full h-full" />
-    </>
+    </div>
+  );
+}
+
+import { Polyline } from 'react-leaflet';
+function RoutePolyline({ route }: { route: any }) {
+  const color = route.type === 'safe' ? '#10b981' : route.type === 'caution' ? '#f59e0b' : '#ef4444';
+  const dash = route.type === 'safe' ? '' : route.type === 'caution' ? '10, 10' : '5, 10';
+  
+  return (
+    <Polyline
+      positions={route.coordinates}
+      pathOptions={{
+        color,
+        weight: 5,
+        opacity: 0.8,
+        dashArray: dash,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }}
+    />
   );
 }

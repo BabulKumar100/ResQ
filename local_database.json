@@ -50,7 +50,7 @@
       "lng": -118.24,
       "status": "busy",
       "agency": "Air Unit",
-      "fuelPct": 84,
+      "fuelPct": 82.5,
       "crewCount": 0,
       "equipment": [
         "drone"
@@ -65,7 +65,7 @@
       "lng": -118.25,
       "status": "busy",
       "agency": "Ground Unit",
-      "fuelPct": 18,
+      "fuelPct": 16.5,
       "crewCount": 0,
       "equipment": [
         "rover"
@@ -175,5 +175,102 @@
       "createdAt": "2026-03-28T05:08:45.056Z"
     }
   ],
-  "live_events": []
+  "live_events": [
+    {
+      "type": "DEPLOY",
+      "message": "MED-VAC ALPHA deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "obr2hih",
+      "createdAt": "2026-03-28T07:57:12.035Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "MED-VAC ALPHA deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "940f1yv",
+      "createdAt": "2026-03-28T07:57:12.757Z"
+    },
+    {
+      "type": "BROADCAST",
+      "message": "EMERGENCY ALERT: All channels notified. Civilians advised to evacuate Zones 4 & 7.",
+      "severity": "critical",
+      "locationName": "ALL SECTORS",
+      "id": "ftio04i",
+      "createdAt": "2026-03-28T07:57:58.548Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "RAPID RESPONSE deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "l3crwkh",
+      "createdAt": "2026-03-28T17:54:01.467Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "DRONE-7 ALPHA deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "8a8w9k0",
+      "createdAt": "2026-03-28T17:54:08.487Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "ROVER GRID-X deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "6t0720j",
+      "createdAt": "2026-03-28T17:54:12.679Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "MEDVAC B deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "c2wo6vu",
+      "createdAt": "2026-03-28T17:54:13.342Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "MED-VAC ALPHA deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "xj304y3",
+      "createdAt": "2026-03-28T17:54:14.466Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "HAZMAT TEAM-3 deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "nh8eboj",
+      "createdAt": "2026-03-28T17:54:15.039Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "RIOT CONTROL-9 deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "1eica5q",
+      "createdAt": "2026-03-28T17:54:15.895Z"
+    },
+    {
+      "type": "BROADCAST",
+      "message": "EMERGENCY ALERT: All channels notified. Civilians advised to evacuate Zones 4 & 7.",
+      "severity": "critical",
+      "locationName": "ALL SECTORS",
+      "id": "vhn8rq8",
+      "createdAt": "2026-03-28T17:54:17.014Z"
+    },
+    {
+      "type": "DEPLOY",
+      "message": "RAPID RESPONSE deployed to incident m2",
+      "severity": "info",
+      "locationName": "Blue Line Downtown",
+      "id": "wf38emk",
+      "createdAt": "2026-03-28T17:54:24.775Z"
+    }
+  ]
 }

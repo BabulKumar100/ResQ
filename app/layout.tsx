@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Space_Grotesk, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/app/providers'
+import { GlobalInitialization } from '@/components/GlobalInitialization'
 import './globals.css'
+
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -64,8 +66,10 @@ export default function RootLayout({
       </head>
       <body className={`${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-[#111318] text-[#e2e2e9]`}>
         <Providers>
+          <GlobalInitialization />
           {children}
           <Analytics />
+
           <script
             dangerouslySetInnerHTML={{
               __html: `

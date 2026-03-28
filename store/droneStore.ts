@@ -26,6 +26,8 @@ interface DroneStore {
   setDrones: (drones: Drone[]) => void;
   setActiveDroneId: (id: string | null) => void;
   getActiveDrone: () => Drone | null;
+  updatePosition: (id: string, pos: { lat: number; lng: number; altitude?: number; speed?: number }) => void;
+  assignDrone: (droneId: string, incidentId: string) => void;
 }
 
 export const useDroneStore = create<DroneStore>((set, get) => ({
@@ -36,5 +38,14 @@ export const useDroneStore = create<DroneStore>((set, get) => ({
   getActiveDrone: () => {
     const { drones, activeDroneId } = get();
     return drones.find(d => d.id === activeDroneId) || drones[0] || null;
+  },
+  updatePosition: (id, pos) => set(state => ({
+    drones: state.drones.map(d => d.id === id ? { ...d, ...pos } : d)
+  })),
+  assignDrone: (droneId, incidentId) => {
+    set(state => ({
+      drones: state.drones.map(d => d.id === droneId ? { ...d, assignedIncident: incidentId, status: 'EN_ROUTE' } : d)
+    }));
+    // Optional: add map route layer trigger logic here
   }
 }));
