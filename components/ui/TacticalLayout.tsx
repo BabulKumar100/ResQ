@@ -7,7 +7,7 @@ import { useSystemStore, Notification } from '@/store/systemStore';
 import { useAuthStore } from '@/store/authStore';
 import { formatDistanceToNow } from 'date-fns';
 import { DisasterSearch } from '@/components/DisasterSearch';
-import { Menu, X, Bell, Shield, LogOut, ChevronRight, Activity, Globe, Map as MapIcon, Layers, Radio } from 'lucide-react';
+import { Menu, X, Bell, Shield, LogOut, ChevronRight, Activity, Globe, Map as MapIcon, Layers, Radio, Users2, Plane, BrainCircuit, PackageCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TacticalLayoutProps {
@@ -28,8 +28,12 @@ export const TacticalLayout: React.FC<TacticalLayoutProps> = ({ children }) => {
     { icon: <MapIcon className="w-5 h-5"/>, label: 'Tactical Map', path: '/map', roles: ['admin', 'dispatcher', 'rescuer', 'viewer'] },
     { icon: <Activity className="w-5 h-5"/>, label: 'Analytics', path: '/resqmap', roles: ['admin', 'dispatcher'] },
     { icon: <Globe className="w-5 h-5"/>, label: 'India Portal', path: '/', roles: ['admin', 'dispatcher', 'rescuer', 'viewer'] },
-    { icon: <Layers className="w-5 h-5"/>, label: 'Resources', path: '/inventory', roles: ['admin', 'dispatcher'] },
+    { icon: <Layers className="w-5 h-5"/>, label: 'Command Center', path: '/command-center', roles: ['admin', 'dispatcher'] },
     { icon: <Radio className="w-5 h-5"/>, label: 'SOS Hub', path: '/sos', roles: ['admin', 'dispatcher', 'rescuer'] },
+    { icon: <Users2 className="w-5 h-5"/>, label: 'Survivors', path: '/survivors', roles: ['admin', 'dispatcher', 'rescuer'] },
+    { icon: <Plane className="w-5 h-5"/>, label: 'Drone Ops', path: '/drones', roles: ['admin', 'dispatcher'] },
+    { icon: <BrainCircuit className="w-5 h-5"/>, label: 'AI Prediction', path: '/prediction', roles: ['admin', 'dispatcher'] },
+    { icon: <PackageCheck className="w-5 h-5"/>, label: 'Resources', path: '/resources', roles: ['admin', 'dispatcher'] },
   ].filter(item => !user || item.roles.includes(user.role));
 
   const statusConfig = {
