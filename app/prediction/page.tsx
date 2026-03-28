@@ -71,7 +71,7 @@ export default function PredictionPage() {
 
   return (
     <TacticalLayout>
-      <div className="p-4 md:p-6 overflow-y-auto h-full">
+      <div className="p-4 md:p-6 overflow-y-auto" style={{ minHeight: '100%', maxHeight: '100vh', overflowY: 'auto' }}>
         <div className="max-w-[1600px] mx-auto space-y-6">
 
           {/* Header */}
