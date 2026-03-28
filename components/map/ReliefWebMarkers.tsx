@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react'
 import { LayerGroup, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
-import { fetchReliefWebDisasters, DisasterEvent } from '@/lib/indiaDisasterData'
+import { fetchReliefWebIndia, DisasterEvent } from '@/lib/indiaDisasterData'
 
 export function ReliefWebMarkers() {
   const [reliefEvents, setReliefEvents] = useState<DisasterEvent[]>([])
 
   useEffect(() => {
     const load = async () => {
-      const data = await fetchReliefWebDisasters()
+      const data = await fetchReliefWebIndia()
       setReliefEvents(data)
     }
     load()
@@ -66,4 +66,3 @@ export function ReliefWebMarkers() {
     </LayerGroup>
   )
 }
-import React from 'react'
