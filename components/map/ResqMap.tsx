@@ -8,7 +8,7 @@ import { RESQMAP_COLORS } from '@/lib/resqmap-design-tokens'
 export function ResqMap() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
-  const { incidents, sosAlerts, selectedIncident, setSelectedIncident } = useResqMapStore()
+  const { incidents, sosAlerts, rescuers, selectedIncident, setSelectedIncident } = useResqMapStore()
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -69,10 +69,40 @@ export function ResqMap() {
         .addTo(map)
     })
 
+    // Add rescuer/unit markers
+    rescuers.forEach((rescuer) => {
+      // Color-coding based on agency
+      let color = '#ffffff' // Default
+      const teamLower = rescuer.team.toLowerCase()
+      if (teamLower.includes('fire')) color = '#ef4444' // Red
+      else if (teamLower.includes('medical') || teamLower.includes('ambulance')) color = '#10b981' // Green
+      else if (teamLower.includes('police') || teamLower.includes('law')) color = '#3b82f6' // Blue
+      else if (teamLower.includes('rescue')) color = '#f59e0b' // Orange
+
+      const statusIndicator = rescuer.availability ? '✅ Available' : '🔴 Busy/Unavailable'
+
+      L.circleMarker([rescuer.location[0], rescuer.location[1]], {
+        radius: 6,
+        fillColor: color,
+        color: '#ffffff', // White border for units
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
+      })
+        .bindPopup(`
+          <div style="font-family: sans-serif;">
+            <strong style="color: ${color}; font-size: 14px;">${rescuer.team}</strong><br/>
+            <b>Unit:</b> ${rescuer.name}<br/>
+            <b>Status:</b> ${statusIndicator}
+          </div>
+        `)
+        .addTo(map)
+    })
+
     return () => {
       // Cleanup is handled by map instance
     }
-  }, [incidents, sosAlerts])
+  }, [incidents, sosAlerts, rescuers])
 
   // Pan to selected incident
   useEffect(() => {

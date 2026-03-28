@@ -28,7 +28,8 @@ export function Navigation() {
   }
 
   const menuItems = [
-    { href: '/resqmap', label: 'Command Center', icon: AlertCircle },
+    { href: '/resqmap', label: 'Dashboard', icon: AlertCircle },
+    { href: '/command-center', label: 'Command Center', icon: AlertCircle },
     { href: '/map', label: 'Emergency Map', icon: MapPin },
     { href: '/survivors', label: 'Survivor Tracker', icon: Users },
     { href: '/drones', label: 'Drone Feeds', icon: Plane },
